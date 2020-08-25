@@ -97,7 +97,9 @@ def post_data(data):
 	return url
 
 def load_data(link):
-	return urlopen(link).read()
+	d=urlopen(link).read()
+	print(len(d))
+	return d
 
 class textfile:
 	def __init__(self,text=''):
@@ -117,24 +119,25 @@ class textfile:
 		self.data+=bytearray(data)
 
 def upload_file(file,size):
-	a=''
+	aa=''
 	msize=200000000
 	osize=size
 	while size>msize:
-		a+=post_data(file.read(200))+' '
+		aa+=post_data(file.read(msize))+' '
 		size-=msize
 		log((osize-size)/osize)
 	if size:
-		a+=post_data(file.read())+' '
+		aa+=post_data(file.read(size))+' '
 	log()
-	a=a[:-1]
-	return post_data(a.encode())
+	return post_data(aa.encode())
 
 def download_file(file,link):
 	a=load_data(link).decode().split()
+	print(a)
 	for w in a:
 		file.write(load_data(w))
 		log(a.index(w)/len(a))
+		system('ls -ltr | tail -n 1')
 	log()
 	return file
 
@@ -143,7 +146,7 @@ if exists(home+'.cloud.link'):
 else:
 	db=dict()
 
-if len(argv)<2:
+if len(argv)<2 or argv[1] not in ['list','upload','download']:
 	print(f'''
 usage: {argv[0]} upload FILE
        {argv[0]} download FILE
@@ -161,7 +164,7 @@ if argv[1]=='upload':
 	if argv[2] in db.keys():
 		print('name '+argv[2]+' is already used in remote filesystem')
 		exit()
-	db[argv[2]]=upload_file(open(argv[2],'rb'),getsize(argv[2]))
+	db[abspath(argv[2]).split('/')[-1]]=upload_file(open(argv[2],'rb'),getsize(argv[2]))
 
 if argv[1]=='download':
 	if len(argv)<3:
