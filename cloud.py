@@ -170,7 +170,7 @@ if argv[1]=='upload':
 	db[abspath(argv[2]).split('/')[-1]]=upload_file(open(argv[2],'rb'),getsize(argv[2]))
 
 if argv[1]=='download':
-	if len(,'rename'argv)<3:
+	if len(argv)<3:
 		print('usage: '+argv[0]+' download FILE')
 		exit()
 	if exists(argv[2]):
