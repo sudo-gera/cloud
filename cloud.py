@@ -98,7 +98,6 @@ def post_data(data):
 
 def load_data(link):
 	d=urlopen(link).read()
-	print(len(d))
 	return d
 
 class textfile:
@@ -133,11 +132,9 @@ def upload_file(file,size):
 
 def download_file(file,link):
 	a=load_data(link).decode().split()
-	print(a)
 	for w in a:
 		file.write(load_data(w))
 		log(a.index(w)/len(a))
-		system('ls -ltr | tail -n 1')
 	log()
 	return file
 
