@@ -1,5 +1,10 @@
 
 
+""":"
+python3 $0 $@
+exit
+":"""
+
 from urllib.request import urlopen
 from json import loads
 from json import dumps
