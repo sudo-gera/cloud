@@ -47,7 +47,7 @@ if home[-1]!='/':
 if not exists(home+'.cloud.token'):
 	group=dict()
 	group['token']=input('''
-select group or create one. You should be create of group.
+select group or create one. You should be creator of group.
 allow messages to group and write a random to group from your account
 create API token with acess to docs and messages and enter: ''')
 	group['gid']=None
