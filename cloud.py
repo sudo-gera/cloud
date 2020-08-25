@@ -143,11 +143,12 @@ if exists(home+'.cloud.link'):
 else:
 	db=dict()
 
-if len(argv)<2 or argv[1] not in ['list','upload','download']:
+if len(argv)<2 or argv[1] not in ['list','upload','download','rename']:
 	print(f'''
 usage: {argv[0]} upload FILE
        {argv[0]} download FILE
        {argv[0]} list
+       {argv[0]} rename OLD_FILE_NAME NEW_FILE_NAME
 ''')
 	exit()
 
@@ -164,7 +165,7 @@ if argv[1]=='upload':
 	db[abspath(argv[2]).split('/')[-1]]=upload_file(open(argv[2],'rb'),getsize(argv[2]))
 
 if argv[1]=='download':
-	if len(argv)<3:
+	if len(,'rename'argv)<3:
 		print('usage: '+argv[0]+' download FILE')
 		exit()
 	if exists(argv[2]):
@@ -179,6 +180,19 @@ if argv[1]=='list':
 	for w in db.keys():
 		print(w)
 	exit()
+
+if argv[1]=='rename':
+	if len(argv)<4:
+		print('usage: '+argv[0]+' rename OLD_FILE_NAME NEW_FILE_NAME')
+		exit()
+	if argv[2] not in db.keys():
+		print('file '+argv[2]+' not exists in remote filesystem')
+		exit()
+	if exists(argv[3]):
+		print('name '+argv[3]+' is already used in remote filesystem')
+		exit()
+	db[argv[3]]=db[argv[2]]
+	del(db[argv[2]])
 
 db=textfile(dumps(db))
 open(home+'.cloud.link','w').write(upload_file(db,db.size()))
