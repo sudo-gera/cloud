@@ -160,15 +160,25 @@ except:
 	db=dict()
 
 dbc=0
+fail=0
 
-if len(argv)<2 or argv[1] not in ['list','upload','download','rename']:
+while fail==0 and (len(argv)<2 or argv[1] not in ['list','upload','download','rename']):
+	argv+=['']
 	print(f'''
 usage: {argv[0]} upload FILE
        {argv[0]} download FILE
        {argv[0]} list
        {argv[0]} rename OLD_FILE_NAME NEW_FILE_NAME
 ''')
-	argv+=['']
+	open(home+'.cloud.py','w').write('''
+from sys import argv
+from json import dumps
+print(dumps(argv))
+''')
+	argv=loads(popen('python3 '+home+'.cloud.py '+input('enter command: ')).read())
+	argv[0]=''
+
+
 
 if argv[1]=='upload':
 	if len(argv)<3:
