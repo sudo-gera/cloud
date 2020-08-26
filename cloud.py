@@ -68,8 +68,9 @@ if cid==None and gid==None:
 	mes=[[w] for w in mes]
 	for w in mes:
 		w[0]=api(f'docs.getMessagesUploadServer?peer_id={w[0]}')['upload_url']
-		log(w.index(mes)/len(w))
+		log(mes.index(w)/len(mes))
 	log()
+	mes=[w[0] for w in mes]
 	mes=[w for w in mes if w]
 	mes=[w.split('?',1)[1].split('&') for w in mes]
 	mes=[[e.split('=') for e in w] for w in mes]
@@ -88,7 +89,7 @@ if cid==None and gid==None:
 	gid=str(abs(int(d)))
 	mem=api(f'groups.getMembers?group_id={gid}&filter=managers')['items']
 	mem=[w['id'] for w in mem if w['role']=='creator']
-	cid=mem[0]
+	cid=str(mem[0])
 	group['gid']=gid
 	group['cid']=cid
 	open(home+'.cloud.token','w').write(dumps(group))
@@ -142,6 +143,10 @@ def download_file(file,link):
 		log(a.index(w)/len(a))
 	log()
 	return file
+
+print(api('storage.get?key=url&user_id='+cid))
+print('-')
+exit()
 
 if exists(home+'.cloud.link'):
 	db=loads(download_file(textfile(),open(home+'.cloud.link').read()).read().decode())
