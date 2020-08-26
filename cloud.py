@@ -70,12 +70,8 @@ if cid==None or gid==None:
 		w[0]=api(f'docs.getMessagesUploadServer?peer_id={w[0]}')['upload_url']
 		log(mes.index(w)/len(mes))
 	log()
-<<<<<<< HEAD
 	mes=[w[0] for w in mes]
 	mes=[w for w in mes if w]
-=======
-	mes=[w[0] for w in mes if w[0]]
->>>>>>> dbba7c0fad0cb3b6e01041dbab96f3f06462294b
 	mes=[w.split('?',1)[1].split('&') for w in mes]
 	mes=[[e.split('=') for e in w] for w in mes]
 	mes=[dict(w) for w in mes]
@@ -148,19 +144,9 @@ def download_file(file,link):
 	log()
 	return file
 
-<<<<<<< HEAD
-print(api('storage.get?key=url&user_id='+cid))
-print('-')
-exit()
-
-if exists(home+'.cloud.link'):
-	db=loads(download_file(textfile(),open(home+'.cloud.link').read()).read().decode())
-else:
-=======
 try:
 	db=loads(download_file(textfile(),api('storage.get?key=url&user_id='+cid)).read().decode())
 except:
->>>>>>> dbba7c0fad0cb3b6e01041dbab96f3f06462294b
 	db=dict()
 
 if len(argv)<2 or argv[1] not in ['list','upload','download','rename']:
@@ -215,6 +201,5 @@ if argv[1]=='rename':
 	del(db[argv[2]])
 
 db=textfile(dumps(db))
-#open(home+'.cloud.link','w').write(upload_file(db,db.size()))
 url=upload_file(db,db.size())
 api(f'storage.set?key=url&value={url}&user_id={cid}')
