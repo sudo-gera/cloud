@@ -59,7 +59,7 @@ gid=group['gid']
 cid=group['cid']
 
 wid=get_terminal_size()[0]
-if cid==None and gid==None:
+if cid==None or gid==None:
 	mes=api('messages.getConversations')['items']
 	while mes==[]:
 		print('send a random message to group from your account')
@@ -70,8 +70,12 @@ if cid==None and gid==None:
 		w[0]=api(f'docs.getMessagesUploadServer?peer_id={w[0]}')['upload_url']
 		log(mes.index(w)/len(mes))
 	log()
+<<<<<<< HEAD
 	mes=[w[0] for w in mes]
 	mes=[w for w in mes if w]
+=======
+	mes=[w[0] for w in mes if w[0]]
+>>>>>>> dbba7c0fad0cb3b6e01041dbab96f3f06462294b
 	mes=[w.split('?',1)[1].split('&') for w in mes]
 	mes=[[e.split('=') for e in w] for w in mes]
 	mes=[dict(w) for w in mes]
@@ -103,8 +107,7 @@ def post_data(data):
 	return url
 
 def load_data(link):
-	d=urlopen(link).read()
-	return d
+	return urlopen(link).read()
 
 class textfile:
 	def __init__(self,text=''):
@@ -137,13 +140,15 @@ def upload_file(file,size):
 	return post_data(aa.encode())
 
 def download_file(file,link):
-	a=load_data(link).decode().split()
+	a=load_data(link)
+	a=a.decode().split()
 	for w in a:
 		file.write(load_data(w))
 		log(a.index(w)/len(a))
 	log()
 	return file
 
+<<<<<<< HEAD
 print(api('storage.get?key=url&user_id='+cid))
 print('-')
 exit()
@@ -151,6 +156,11 @@ exit()
 if exists(home+'.cloud.link'):
 	db=loads(download_file(textfile(),open(home+'.cloud.link').read()).read().decode())
 else:
+=======
+try:
+	db=loads(download_file(textfile(),api('storage.get?key=url&user_id='+cid)).read().decode())
+except:
+>>>>>>> dbba7c0fad0cb3b6e01041dbab96f3f06462294b
 	db=dict()
 
 if len(argv)<2 or argv[1] not in ['list','upload','download','rename']:
@@ -167,10 +177,10 @@ if argv[1]=='upload':
 		print('usage: '+argv[0]+' upload FILE')
 		exit()
 	if not exists(argv[2]):
-		print('file '+argv[2]+' not exists in local filesystem')
+		print('error: name '+argv[2]+' not found in local filesystem')
 		exit()
 	if argv[2] in db.keys():
-		print('name '+argv[2]+' is already used in remote filesystem')
+		print('ename '+argv[2]+' found in remote filesystem')
 		exit()
 	db[abspath(argv[2]).split('/')[-1]]=upload_file(open(argv[2],'rb'),getsize(argv[2]))
 
@@ -179,10 +189,10 @@ if argv[1]=='download':
 		print('usage: '+argv[0]+' download FILE')
 		exit()
 	if exists(argv[2]):
-		print('name '+argv[2]+' is already used in local filesystem')
+		print('name '+argv[2]+' found in local filesystem')
 		exit()
 	if argv[2] not in db.keys():
-		print('file '+argv[2]+' not exists in remote filesystem')
+		print('file '+argv[2]+' not found in remote filesystem')
 		exit()
 	download_file(open(argv[2],'wb'),db[argv[2]])
 
@@ -205,4 +215,6 @@ if argv[1]=='rename':
 	del(db[argv[2]])
 
 db=textfile(dumps(db))
-open(home+'.cloud.link','w').write(upload_file(db,db.size()))
+#open(home+'.cloud.link','w').write(upload_file(db,db.size()))
+url=upload_file(db,db.size())
+api(f'storage.set?key=url&value={url}&user_id={cid}')
