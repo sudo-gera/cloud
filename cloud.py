@@ -40,7 +40,8 @@ def log(p=None):
 	else:
 		print('#'*int(p*wid),end='\r')
 
-home=getenv('HOME')
+from pathlib import Path
+home=str(Path.home())
 if home[-1]!='/':
 	home+='/'
 
