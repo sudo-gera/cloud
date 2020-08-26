@@ -159,6 +159,8 @@ try:
 except:
 	db=dict()
 
+dbc=0
+
 if len(argv)<2 or argv[1] not in ['list','upload','download','rename']:
 	print(f'''
 usage: {argv[0]} upload FILE
@@ -166,31 +168,28 @@ usage: {argv[0]} upload FILE
        {argv[0]} list
        {argv[0]} rename OLD_FILE_NAME NEW_FILE_NAME
 ''')
-	exit()
+	argv+=['']
 
 if argv[1]=='upload':
 	if len(argv)<3:
 		print('usage: '+argv[0]+' upload FILE')
-		exit()
-	if not exists(argv[2]):
+	elif not exists(argv[2]):
 		print('error: name '+argv[2]+' not found in local filesystem')
-		exit()
-	if argv[2] in db.keys():
+	elif argv[2] in db.keys():
 		print('error: name '+argv[2]+' found in remote filesystem')
-		exit()
-	db[abspath(argv[2]).split('/')[-1]]=upload_file(open(argv[2],'rb'),getsize(argv[2]))
+	else:
+		dbc=1
+		db[abspath(argv[2]).split('/')[-1]]=upload_file(open(argv[2],'rb'),getsize(argv[2]))
 
 if argv[1]=='download':
 	if len(argv)<3:
 		print('usage: '+argv[0]+' download FILE')
-		exit()
-	if exists(argv[2]):
+	elif exists(argv[2]):
 		print('error: name '+argv[2]+' found in local filesystem')
-		exit()
-	if argv[2] not in db.keys():
+	elif argv[2] not in db.keys():
 		print('error: name '+argv[2]+' not found in remote filesystem')
-		exit()
-	download_file(open(argv[2],'wb'),db[argv[2]])
+	else:
+		download_file(open(argv[2],'wb'),db[argv[2]])
 
 if argv[1]=='list':
 	for w in db.keys():
@@ -199,16 +198,16 @@ if argv[1]=='list':
 if argv[1]=='rename':
 	if len(argv)<4:
 		print('usage: '+argv[0]+' rename OLD_FILE_NAME NEW_FILE_NAME')
-		exit()
 	if argv[2] not in db.keys():
 		print('error: name '+argv[2]+' not found in remote filesystem')
-		exit()
 	if exists(argv[3]):
 		print('error: name '+argv[3]+' found in remote filesystem')
-		exit()
-	db[argv[3]]=db[argv[2]]
-	del(db[argv[2]])
+	else:
+		dbc=1
+		db[argv[3]]=db[argv[2]]
+		del(db[argv[2]])
 
-db=textfile(dumps(db))
-url=upload_file(db,db.size())
-api(f'storage.set?key=url&value={url}&user_id={cid}')
+if dbc:
+	db=textfile(dumps(db))
+	url=upload_file(db,db.size())
+	api(f'storage.set?key=url&value={url}&user_id={cid}')
