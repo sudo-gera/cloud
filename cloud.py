@@ -53,7 +53,11 @@ allow messages to group and write a random to group from your account
 create API token with acess to docs and messages and enter: ''')
 	group['gid']=None
 	group['cid']=None
-	open(home+'.cloud.token','w').write(dumps(group))
+	if mes=api('messages.getConversations')!= None:
+		open(home+'.cloud.token','w').write(dumps(group))
+	else:
+		print('error: invalid token')
+		exit()
 group=loads(open(home+'.cloud.token').read())
 token=group['token']
 gid=group['gid']
