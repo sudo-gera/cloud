@@ -58,7 +58,11 @@ token=group['token']
 gid=group['gid']
 cid=group['cid']
 
-wid=get_terminal_size()[0]
+try:
+	wid=get_terminal_size()[0]
+except:
+	wid=0
+
 if cid==None or gid==None:
 	mes=api('messages.getConversations')['items']
 	while mes==[]:
@@ -166,7 +170,7 @@ if argv[1]=='upload':
 		print('error: name '+argv[2]+' not found in local filesystem')
 		exit()
 	if argv[2] in db.keys():
-		print('ename '+argv[2]+' found in remote filesystem')
+		print('error: name '+argv[2]+' found in remote filesystem')
 		exit()
 	db[abspath(argv[2]).split('/')[-1]]=upload_file(open(argv[2],'rb'),getsize(argv[2]))
 
@@ -175,27 +179,26 @@ if argv[1]=='download':
 		print('usage: '+argv[0]+' download FILE')
 		exit()
 	if exists(argv[2]):
-		print('name '+argv[2]+' found in local filesystem')
+		print('error: name '+argv[2]+' found in local filesystem')
 		exit()
 	if argv[2] not in db.keys():
-		print('file '+argv[2]+' not found in remote filesystem')
+		print('error: name '+argv[2]+' not found in remote filesystem')
 		exit()
 	download_file(open(argv[2],'wb'),db[argv[2]])
 
 if argv[1]=='list':
 	for w in db.keys():
 		print(w)
-	exit()
 
 if argv[1]=='rename':
 	if len(argv)<4:
 		print('usage: '+argv[0]+' rename OLD_FILE_NAME NEW_FILE_NAME')
 		exit()
 	if argv[2] not in db.keys():
-		print('file '+argv[2]+' not exists in remote filesystem')
+		print('error: name '+argv[2]+' not found in remote filesystem')
 		exit()
 	if exists(argv[3]):
-		print('name '+argv[3]+' is already used in remote filesystem')
+		print('error: name '+argv[3]+' found in remote filesystem')
 		exit()
 	db[argv[3]]=db[argv[2]]
 	del(db[argv[2]])
