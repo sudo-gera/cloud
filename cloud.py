@@ -14,11 +14,13 @@ from time import time
 from time import asctime
 from traceback import format_exc as fo
 from requests import post
+from http.server import BaseHTTPRequestHandler, HTTPServer
 _____op=open
 exec('from os import *')
 exec('from os.path import *')
 open=_____op
 from sys import argv
+
 def api(path,data=''):
  if path and path[-1] not in '&?':
   if '?' in path:
@@ -154,15 +156,17 @@ def download_file(file,link):
 	log()
 	return file
 
-try:
-	db=loads(download_file(textfile(),api('storage.get?key=url&user_id='+cid)).read().decode())
-except:
-	db=dict()
+def load_db:
+	global db
+	try:
+		db=loads(download_file(textfile(),api('storage.get?key=url&user_id='+cid)).read().decode())
+	except:
+		db=dict()
 
+load_db()
 dbc=0
-fail=0
 
-while fail==0 and (len(argv)<2 or argv[1] not in ['list','upload','download','rename','exit']):
+while and (len(argv)<2 or argv[1] not in ['list','upload','download','rename','exit']):
 	argv+=['']
 	print(f'''
 usage: {argv[0]} upload FILE
@@ -219,7 +223,11 @@ if argv[1]=='rename':
 		db[argv[3]]=db[argv[2]]
 		del(db[argv[2]])
 
-if dbc:
+def save_db():
+	global db
 	db=textfile(dumps(db))
 	url=upload_file(db,db.size())
 	api(f'storage.set?key=url&value={url}&user_id={cid}')
+
+if dbc:
+	save_db()
