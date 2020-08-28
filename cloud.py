@@ -183,7 +183,7 @@ def download_file(file, link):
     return file
 
 
-def load_db:
+def load_db():
     global db
     try:
         db = loads(
@@ -197,7 +197,7 @@ def load_db:
 load_db()
 dbc = 0
 
-while and (len(argv) < 2 or argv[1] not in ['list', 'upload', 'download', 'rename', 'exit']):
+while (len(argv) < 2 or argv[1] not in ['list', 'upload', 'download', 'rename', 'exit']):
     argv += ['']
     print(f'''
 usage: {argv[0]} upload FILE
