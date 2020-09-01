@@ -38,14 +38,6 @@ except:
 	home += '/' if home[-1] != '/' else ''
 	app = sd1 = sd2 = home
 
-
-def request():
-	from android.permissions import request_permissions, Permission
-	request_permissions([Permission.WRITE_EXTERNAL_STORAGE,
-						 Permission.READ_EXTERNAL_STORAGE,
-						 Permission.INTERNET])
-
-
 def items(q):
 	if type(q) == type(dict()):
 		if set(q.keys()) == set(['count', 'items']):
@@ -81,20 +73,23 @@ def api(path, data=''):
 				token,
 				data=data).read().decode())
 	except:
-		log('no internet connection')
+		get.Popup(title='no internet connection',content=get.Label(text='check internet connection')).open()
 		return
 	try:
 		return items(ret['response'])
-	except: log(ret)
+	except:
+		get.Popup(title='error',content=get.Label(text=str(ret))).open()
+		
 
 
 def save_db():
 	global db
 	db = textfile(dumps(db))
-	url = upload_file(db, db.size())
 	try:
-		api(f'storage.set?key=url&value={url}&user_id={cid}')
-	except: log(error())
+		url = upload_file(db, db.size())
+	except:
+		get.Popup(title='error',content=get.Label(text='unable to save files info')).open()
+	api(f'storage.set?key=url&value={url}&user_id={cid}')
 
 db=dict()
 
@@ -102,26 +97,16 @@ def load_db():
 	global db
 	db = dict()
 	try:
-		db = loads(
-			download_file(
-				textfile(), api(
-					'storage.get?key=url&user_id=' + cid)).read().decode())
-	except: log(error())
+		db = loads(download_file(textfile(), api('storage.get?key=url&user_id=' + cid)).read().decode())
+	except:
+		pass
 
 
 def post_data(data):
 	name = str(time()) + '.txt'
 	open(app + '.cloud.tmp', 'wb').write(data)
 	url = api(f'docs.getMessagesUploadServer?peer_id={cid}')['upload_url']
-	r = post(
-		url,
-		files={
-			'file': (
-				name,
-				open(
-					app +
-					'.cloud.tmp',
-					'rb'))}).json()
+	r = post(url,files={'file': (name,open(app +'.cloud.tmp','rb'))}).json()
 	open(app + '.cloud.tmp', 'w')
 	url = api('docs.save?file=' + r['file'] + '&title=' + name)['doc']['url']
 	return url
@@ -171,13 +156,8 @@ def download_file(file, link):
 		file.write(load_data(w))
 	return file
 
-
-def black(self):
-	self.background_color = (0, 0, 0, 1)
-
-
 def check_token(instance):
-	log('wait please')
+	get.Popup(title='checking token',content=get.Label(text='wait please')).open()
 	global token
 	token = instance.text
 	a=api('messages.getConversations')
@@ -187,61 +167,52 @@ def check_token(instance):
 		d['cid'] = None
 		d['gid'] = None
 		open(app + '.token', 'w').write(dumps(d))
-		try:
-			get_id()
-			normal()
-		except: log(error())
+		get_id()
+		normal()
 	else:
-		log('checking token failed')
-
-
-def log(q):
-	w=''
-	q=str(q)
-	while q:
-		w=q[:80]+'\n'
-		q=q[80:]
-	global llab
-	llab.text += str(w)+'\n'
-	llab.text = llab.text[-1024:]
+		pass
 
 
 def get_id():
-	group = dict()
-	global token
-	group['token'] = token
-	mes = api('messages.getConversations')
-	while mes == []:
-		log('send a random message to group from your account')
-		mes = api('messages.getConversations?count=8')
-	mes = [w['conversation']['peer']['id'] for w in mes]
-	mes = [[w] for w in mes]
-	for w in mes:
-		w[0] = api(f'docs.getMessagesUploadServer?peer_id={w[0]}')[
-			'upload_url']
-	mes = [w[0] for w in mes]
-	mes = [w for w in mes if w]
-	mes = [w.split('?', 1)[1].split('&') for w in mes]
-	mes = [[e.split('=') for e in w] for w in mes]
-	mes = [dict(w) for w in mes]
-	d = dict()
-	for e in mes[0].keys():
-		if all([e in w and w[e] == mes[0][e] for w in mes]):
-			d[e] = mes[0][e]
-	for w in list(d.keys()):
-		try:
-			int(d[w])
-		except BaseException:
-			del(d[w])
-	d = [d[w] for w in d if'id' in w and d[w][0] == '-']
-	d = max(d, key=len)
-	gid = str(abs(int(d)))
-	mem = api(f'groups.getMembers?group_id={gid}&filter=managers')
-	mem = [w['id'] for w in mem if w['role'] == 'creator']
-	cid = str(mem[0])
-	group['gid'] = gid
-	group['cid'] = cid
-	open(app + '.token', 'w').write(dumps(group))
+	try:
+		group = dict()
+		global token
+		group['token'] = token
+		mes = api('messages.getConversations')
+		while mes == []:
+			get.Popup(title='error',content=get.Label(text=instance.filename+' send a random message to your group')).open()
+			mes = api('messages.getConversations?count=8')
+		mes = [w['conversation']['peer']['id'] for w in mes]
+		mes = [[w] for w in mes]
+		for w in mes:
+			w[0] = api(f'docs.getMessagesUploadServer?peer_id={w[0]}')[
+				'upload_url']
+		mes = [w[0] for w in mes]
+		mes = [w for w in mes if w]
+		mes = [w.split('?', 1)[1].split('&') for w in mes]
+		mes = [[e.split('=') for e in w] for w in mes]
+		mes = [dict(w) for w in mes]
+		d = dict()
+		for e in mes[0].keys():
+			if all([e in w and w[e] == mes[0][e] for w in mes]):
+				d[e] = mes[0][e]
+		for w in list(d.keys()):
+			try:
+				int(d[w])
+			except BaseException:
+				del(d[w])
+		d = [d[w] for w in d if'id' in w and d[w][0] == '-']
+		d = max(d, key=len)
+		gid = str(abs(int(d)))
+		mem = api(f'groups.getMembers?group_id={gid}&filter=managers')
+		mem = [w['id'] for w in mem if w['role'] == 'creator']
+		cid = str(mem[0])
+		group['gid'] = gid
+		group['cid'] = cid
+		open(app + '.token', 'w').write(dumps(group))
+	except:
+		get.Popup(title='system error',content=get.Label(text='contact the administrator')).open()
+
 
 def no_token(instance=None):
 	global bg
@@ -260,11 +231,11 @@ def listing(a,r):
 	files.clear_widgets()
 	c=0
 	for w in a:
-		w=w[:80]
 		if c%9==0:
 			p=get.BoxLayout(orientation='vertical')
 			files.add_widget(p)
-		b=get.Button(text=w)
+		b=get.Button(text=w[:80])
+		b.filename=w
 		b.frompage=r
 		b.bind(on_release=file)
 		p.add_widget(b)
@@ -296,7 +267,7 @@ def file(instance=None):
 	v=['local','remote']
 	b=get.Button(text='copy to '+v[1-v.index(instance.frompage)])
 	b.frompage=instance.frompage
-	b.filename=instance.text
+	b.filename=instance.filename
 	b.bind(on_release=copy)
 	p.add_widget(b)
 	b=get.Button(text='rename')
@@ -306,26 +277,26 @@ def file(instance=None):
 	p.add_widget(b)
 	fg.add_widget(p)
 
-def wait():
-	global bg
-	bg.clear_widgets()
-	bg.add_widget(get.Label(text='wait please'))
-	print('wait')
-
 def copy(instance=None):
 	load_db()
 	global db
 	if instance.frompage=='remote':
 		if exists(sd1+instance.filename):
-			log(instance.filename+' exists in local')
+			get.Popup(title='error',content=get.Label(text=instance.filename+' exists in local')).open()
 		else:
-			download_file(open(sd1+instance.filename,'wb'),db[instance.filename])
+			try:
+				download_file(open(sd1+instance.filename,'wb'),db[instance.filename])
+			except:
+				get.Popup(title='error',content=get.Label(text='unable to download '+instance.filename)).open()
 			normal()
 	if instance.frompage=='local':
 		if instance.filename in db:
-			log(instance.filename+' exists in remote')
+			get.Popup(title='error',content=get.Label(text=instance.filename+' exists in remote')).open()
 		else:
-			db[instance.filename]=upload_file(open(sd1+instance.filename,'rb'),getsize(sd1+instance.filename))
+			try:
+				db[instance.filename]=upload_file(open(sd1+instance.filename,'rb'),getsize(sd1+instance.filename))
+			except:
+				get.Popup(title='error',content=get.Label(text='unable to upload '+instance.filename)).open()
 			normal()
 	save_db()
 
@@ -344,7 +315,7 @@ def rename_file(instance=None):
 		instance.text.replace(w,'_')
 	if instance.frompage=='remote':
 		if instance.text in db.keys():
-			log(instance.text+' exists in remote')
+			get.Popup(title='error',content=get.Label(text=instance.filename+' exists in remote')).open()
 		else:
 			db[instance.text]=db[instance.filename]
 			del(db[instance.filename])
@@ -352,7 +323,7 @@ def rename_file(instance=None):
 		save_db()
 	if instance.frompage=='local':
 		if exists(sd1+instance.text):
-			log(instance.text+' exists in local')
+			get.Popup(title='error',content=get.Label(text=instance.filename+' exists in local')).open()
 		else:
 			rename_(sd1+instance.filename,sd1+instance.text)
 			normal()
@@ -385,24 +356,23 @@ def normal(instance=None):
 	box1.add_widget(fg)
 	bg.add_widget(box1)
 
-llab=None
 bg=None
 
 class vk_cloud(App):
 	def build(self):
-		global llab,bg
-		root=get.PageLayout()
+		global bg
 		bg=get.GridLayout(cols=1)
-		llab=get.Button(text='')
-		llab.background_color=(0,0,0,1)
-		llab.bind(on_press=black)
-		llab.bind(on_release=black)
-		root.add_widget(bg)
-		root.add_widget(llab)
-		log('this is logging page')
 		try:
-			request()
-		except: log(error())
+			from android.permissions import request_permissions, Permission
+		except:
+			pass
+		else:
+			try:
+				request_permissions([Permission.WRITE_EXTERNAL_STORAGE,
+									 Permission.READ_EXTERNAL_STORAGE,
+									 Permission.INTERNET])
+			except:
+				get.Popup(title='error',content=get.Label(text=instance.filename+' needs all permissions')).open()
 		_ret=no_token
 		try:
 			d=loads(open(app+'.token').read())
@@ -410,11 +380,13 @@ class vk_cloud(App):
 			token=d['token']
 			gid=d['gid']
 			cid=d['cid']
+		except:
+			pass
+		else:
 			if not cid or not gid:
 				get_id()
 			_ret=normal
-		except: log(error())
 		_ret()
-		return root
+		return bg
 
 vk_cloud().run()
