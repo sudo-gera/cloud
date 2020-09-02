@@ -5,6 +5,7 @@ from json import dumps
 from time import sleep
 from time import time
 from requests import post
+from io import BytesIO as io
 _____op = open
 exec('from os import *')
 exec('from os.path import *')
@@ -13,7 +14,7 @@ rename_=rename
 
 class _kg:
 	def __getattr__(s, n):
-		for w in ['', 'uix.']:
+		for w in [ 'uix.','storage.','']:
 			try:
 				exec('from kivy.' + w + n.lower() + ' import ' + n)
 				return eval(n)
@@ -80,6 +81,28 @@ def api(path, data=''):
 	except:
 		log(ret)
 
+def load_cred():
+	ore=get.JsonStore('credentials.json')
+	global token,gid,cid
+	token=gid=cid=None
+	try:
+		d=ore.get('cred')
+		token=d['token']
+		gid=d['gid']
+		cid=d['cid']
+	except:
+		pass
+
+def save_cred():
+	ore=get.JsonStore('credentials.json')
+	global token,gid,cid
+	try:
+		d=dict()
+		ore.put('cred',token=token,gid=gid,cid=cid)
+	except:
+		pass
+
+
 def load_db():
 	global db
 	db = dict()
@@ -87,13 +110,13 @@ def load_db():
 		db = loads(download_file(textfile(), api('storage.get?key=url&user_id=' + cid)).read().decode())
 	except:
 		pass
+	return db
 
 def post_data(data):
 	name = str(time()) + '.txt'
-	open(app + '.cloud.tmp', 'wb').write(data)
+	f=io(data)
 	url = api(f'docs.getMessagesUploadServer?peer_id={cid}')['upload_url']
-	r = post(url,files={'file': (name,open(app +'.cloud.tmp','rb'))}).json()
-	open(app + '.cloud.tmp', 'w')
+	r = post(url,files={'file': (name,f)}).json()
 	url = api('docs.save?file=' + r['file'] + '&title=' + name)['doc']['url']
 	return url
 
@@ -140,15 +163,11 @@ def download_file(file, link):
 
 def check_token(instance):
 	loading('checking token, wait please')
-	global token
+	global token,cid,gid
 	token = instance.text
 	a=api('messages.getConversations')
 	if a!=None:
-		d = dict()
-		d['token'] = token
-		d['cid'] = None
-		d['gid'] = None
-		open(app + '.token', 'w').write(dumps(d))
+		save_cred()
 		get_id()
 		normal()
 	else:
@@ -158,7 +177,7 @@ def check_token(instance):
 def get_id():
 	try:
 		group = dict()
-		global token
+		global token,gid,cid
 		group['token'] = token
 		mes = api('messages.getConversations?count=1')
 		while mes == []:
@@ -177,7 +196,7 @@ def get_id():
 		cid = str(mem[0])
 		group['gid'] = gid
 		group['cid'] = cid
-		open(app + '.token', 'w').write(dumps(group))
+		save_cred()
 	except:
 		log('system error')
 
@@ -300,7 +319,9 @@ def rename_file(instance=None):
 
 
 def logout(instance=None):
-	remove(app+'.token')
+	global token,gid,cid
+	token=cid=gid=None
+	save_cred()
 	no_token()
 
 def save_db():
@@ -337,39 +358,26 @@ class vk_cloud(App):
 		global bg
 		bg=get.GridLayout(cols=1)
 		try:
-			from android.permissions import request_permissions, Permission, check_permissions
-			perms=[Permission.WRITE_EXTERNAL_STORAGE,Permission.READ_EXTERNAL_STORAGE,Permission.INTERNET]
-			while  not check_permissions(perms):
-				log('needs all permissions')
-				request_permissions(perms)
+			sd1='/storage/emulated/0/'
+			app='/storage/emulated/0/'
+#			from pathlib import Path
+#			home=Path.home()
+#			sd1=app=home
+#			from android.permissions import request_permissions, Permission, check_permissions
+#			perms=[Permission.WRITE_EXTERNAL_STORAGE,Permission.READ_EXTERNAL_STORAGE,Permission.INTERNET]
+#			while  not check_permissions(perms):
+#				log('needs all permissions')
+#				request_permissions(perms)
 		except:
 			pass
-		_ret=no_token
-		try:
-			d=loads(open(app+'.token').read())
-			global token,gid,cid
-			token=d['token']
-			gid=d['gid']
-			cid=d['cid']
-		except:
-			pass
-		else:
-			if not cid or not gid:
-				get_id()
-			_ret=normal
+		load_cred()
+		global token,gid,cid
+		_ret=normal
+		if not token:
+			_ret=no_token
+		elif not cid or not gid:
+			get_id()
 		_ret()
 		return bg
-
-sd1='/storage/emulated/0/'
-app='/storage/emulated/0/'
-
-try:
-	from pathlib import Path
-	home = str(Path.home())
-	home += '/' if home[-1] != '/' else ''
-	sd1=app=home
-except:
-	pass
-
 
 vk_cloud().run()
