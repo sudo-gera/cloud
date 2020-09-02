@@ -358,6 +358,7 @@ class vk_cloud(App):
 		global bg
 		bg=get.GridLayout(cols=1)
 		try:
+			global sd1,app
 			sd1='/storage/emulated/0/'
 			app='/storage/emulated/0/'
 #			from pathlib import Path
