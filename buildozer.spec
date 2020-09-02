@@ -26,6 +26,7 @@ source.include_exts = py,png,jpg,kv,atlas
 
 # (list) List of exclusions using pattern matching
 #source.exclude_patterns = license,images/*/*.jpg
+source.exclude_patterns = cloud.py
 
 # (str) Application versioning (method 1)
 version = 0.1
