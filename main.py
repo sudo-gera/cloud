@@ -1,19 +1,18 @@
-from kivy.app import App
-from urllib.request import urlopen as ou
+from android.permissions import request_permissions, Permission, check_permissions
+from functools import partial
 from json import loads
 from json import dumps
-from time import sleep
-from time import time
-from kivy.lang import Builder
-from plyer import *
-from functools import partial
 from io import BytesIO as io
+from kivy.app import App
+from kivy.lang import Builder
 from urllib.parse import quote
 from urllib.parse import unquote
-from requests_toolbelt import MultipartEncoder
-from pprint import pprint
+from urllib.request import urlopen as ou
 from plyer import *
-from android.permissions import request_permissions, Permission, check_permissions
+from pprint import pprint
+from requests_toolbelt import MultipartEncoder
+from time import sleep
+from time import time
 _____op = open
 exec('from os import *')
 exec('from os.path import *')

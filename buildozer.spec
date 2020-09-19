@@ -39,7 +39,8 @@ version = 0.1
 # comma separated e.g. requirements = sqlite3,kivy
 #requirements = python3,kivy,os,os.path,json,urllib.request,time,requests
 #requirements = python3,kivy,requests
-requirements = python3,kivy,requests_toolbelt,plyer
+requirements = python3,kivy,requests_toolbelt,plyer,android
+#requirements = python3,kivy
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
