@@ -1,20 +1,32 @@
 from kivy.app import App
-from urllib.request import urlopen
+from urllib.request import urlopen as ou
 from json import loads
 from json import dumps
 from time import sleep
 from time import time
-from requests import post
+from kivy.lang import Builder
+from plyer import *
+from functools import partial
 from io import BytesIO as io
+from urllib.parse import quote
+from urllib.parse import unquote
+from requests_toolbelt import MultipartEncoder
+from pprint import pprint
+from plyer import *
+from android.permissions import request_permissions, Permission, check_permissions
 _____op = open
 exec('from os import *')
 exec('from os.path import *')
 open = _____op
+from kivy.clock import Clock
 rename_=rename
+for w in dir(Clock):
+	if '_' not in [w[:1],w[-1:]]:
+		exec(w+'=Clock.'+w)
 
 class _kg:
 	def __getattr__(s, n):
-		for w in [ 'uix.','storage.','']:
+		for w in [ 'uix.','storage.','network.','']:
 			try:
 				exec('from kivy.' + w + n.lower() + ' import ' + n)
 				return eval(n)
@@ -23,13 +35,19 @@ class _kg:
 
 get = _kg()
 
+def urlopen(url,data=None):
+	d=get.UrlRequest(url,req_body=data,decode=False,on_error=partial(log,'no internet connection'))
+	d.wait()
+	r=d.result
+	if type(r)==type(dict()):
+		r=dumps(r)
+	if type(r)==type(str()):
+		r=r.encode()
+	return r
+
 def log(q):
 	q=str(q)
-	b=get.BoxLayout(orientation='vertical')
-	l=get.Popup(title='',content=b)
-	b.add_widget(get.Label(text=q))
-	b.add_widget(get.Button(text='close',on_release=l.dismiss))
-	l.open()
+	notification.notify(message=q)
 
 def loading(q=None):
 	global lo
@@ -72,12 +90,15 @@ def api(path, data=''):
 				path +
 				'v=5.101&access_token=' +
 				token,
-				data=data).read().decode())
+				data=data).decode())
 	except:
-		log('no internet connection')
 		return
 	try:
 		return items(ret['response'])
+	except:
+		pass
+	try:
+		log(ret['error']['error_msg'])
 	except:
 		log(ret)
 
@@ -102,26 +123,31 @@ def save_cred():
 	except:
 		pass
 
+def logprint(q):
+	print([q])
+	return q
 
 def load_db():
 	global db
-	db = dict()
 	try:
-		db = loads(download_file(textfile(), api('storage.get?key=url&user_id=' + cid)).read().decode())
+		db = loads(download_file(textfile(), unquote(api('storage.get?key=url&user_id=' + cid))).read().decode())
 	except:
-		pass
+		db=dict()
 	return db
 
 def post_data(data):
 	name = str(time()) + '.txt'
-	f=io(data)
 	url = api(f'docs.getMessagesUploadServer?peer_id={cid}')['upload_url']
-	r = post(url,files={'file': (name,f)}).json()
+	payload=MultipartEncoder(fields={'file':(name,data,'text/plain')})
+	headers={'Content-Type':payload.content_type}
+	d=get.UrlRequest(url,req_headers=headers,req_body=payload,on_error=partial(log,'no internet connecton'))
+	d.wait()
+	r=d.result
 	url = api('docs.save?file=' + r['file'] + '&title=' + name)['doc']['url']
 	return url
 
 def load_data(link):
-	return urlopen(link).read()
+	return ou(link).read()
 
 class textfile:
 	def __init__(self, text=''):
@@ -143,10 +169,16 @@ class textfile:
 	def write(self, data):
 		self.data += bytearray(data)
 
-def upload_file(file, size):
+	def __str__(self):
+		return 'textfile: '+str(self.data)
+
+def upload_file(file, size=None):
 	aa = ' '
 	msize = 200000000
 	osize = size
+	if size==None:
+		file=file.read()
+		size,file=len(file),io(file)
 	while size > msize:
 		aa += post_data(file.read(msize)) + ' '
 		size -= msize
@@ -161,24 +193,20 @@ def download_file(file, link):
 		file.write(load_data(w))
 	return file
 
-def check_token(instance):
-	loading('checking token, wait please')
+def check_token(*q,**w):
 	global token,cid,gid
-	token = instance.text
+	token = root.children[1].text
 	a=api('messages.getConversations')
 	if a!=None:
 		save_cred()
 		get_id()
-		normal()
+		listing()
 	else:
 		pass
-	loading()
-
+	
 def get_id():
 	try:
-		group = dict()
 		global token,gid,cid
-		group['token'] = token
 		mes = api('messages.getConversations?count=1')
 		while mes == []:
 			log('send a random message to your group')
@@ -194,128 +222,122 @@ def get_id():
 		mem = api(f'groups.getMembers?group_id={gid}&filter=managers')
 		mem = [w['id'] for w in mem if w['role'] == 'creator']
 		cid = str(mem[0])
-		group['gid'] = gid
-		group['cid'] = cid
 		save_cred()
 	except:
 		log('system error')
 
-def no_token(instance=None):
-	global bg
-	bg.clear_widgets()
-	bg.add_widget(get.Label(text='Create new group in vk.com.\n'+
+def no_token(*q,**w):
+	root.clear_widgets()
+	root.add_widget(get.Label(text='Create new group in vk.com.\n'+
 		'We recommend you to create new one instead of using old one.\n'+
 		'You should be creator of group.\n'+
 		'Allow messages to group and write a random message to group from your account.\n'+
-		'Go to group settings and create API token with acess to docs and messages and enter'))
-	t=get.TextInput(multiline=False)
-	t.bind(on_text_validate=check_token)
-	bg.add_widget(t)
+		'Go to group settings and create API token with acess to docs and messages and enter:'))
+	root.add_widget(get.TextInput(multiline=False,on_text_validate=check_token))
+	root.add_widget(get.Button(text='check token',on_release=check_token))
 
-def listing(a,r):
-	global files
-	files.clear_widgets()
-	c=0
-	for w in a:
-		if c%9==0:
-			p=get.BoxLayout(orientation='vertical')
-			files.add_widget(p)
-		b=get.Button(text=w[:80])
-		b.filename=w
-		b.frompage=r
-		b.bind(on_release=file)
-		p.add_widget(b)
-		c+=1
+Builder.load_string('''
+<RV>:
+    viewclass: 'Button'
+    RecycleBoxLayout:
+        default_size: None, dp(56)
+        default_size_hint: 1, None
+        size_hint_y: None
+        height: self.minimum_height
+        orientation: 'vertical'
+''')
 
-def local(instance=None):
-	global fg,files
-	fg.clear_widgets()
-	files=get.PageLayout()
-	fg.add_widget(files)
-	listing([w for w in listdir(sd1) if isfile(sd1+w)],'local')
 
-def remote(instance=None):
-	global fg,files
-	fg.clear_widgets()
-	files=get.PageLayout()
-	fg.add_widget(files)
+def button(q,w):
+	return {'text':str(q),'on_release':partial(w,q)}
+
+class RV(get.RecycleView):
+    def __init__(self, **kwargs):
+        super(RV, self).__init__(**kwargs)
+
+def listing(*q,**w):
+	root.clear_widgets()
+	root.add_widget(box(orientation='horizontal',size_hint=(1,.1)))
+	root.add_widget(get.Label(text='loading...'))
 	load_db()
-	global db
-	listing(list(db.keys()),'remote')
+	root.children[1].add_widget(get.Button(text='logout',on_release=logout))
+	root.children[1].add_widget(get.Button(text='upload',on_release=upload))
+	root.children[1].add_widget(get.Button(text='refresh',on_release=listing))
+	root.remove_widget(root.children[0])
+	d=list(db.keys())
+	if d:
+		root.add_widget(RV())
+		root.children[0].data=[button(w,file) for w in d]
+	else:
+		root.add_widget(get.Label(text='empty'))
 
-def file(instance=None):
-	global fg
-	fg.clear_widgets()
-	p=get.BoxLayout(orientation='vertical')
-	p.add_widget(get.Label(text=instance.text))
-	v=['local','remote']
-	b=get.Button(text='copy to '+v[1-v.index(instance.frompage)])
-	b.frompage=instance.frompage
-	b.filename=instance.filename
-	b.bind(on_release=copy)
-	p.add_widget(b)
-	b=get.Button(text='rename')
-	b.frompage=instance.frompage
-	b.filename=instance.text
-	b.bind(on_release=rename)
-	p.add_widget(b)
-	fg.add_widget(p)
+def file(filename,*q,**w):
+	root.clear_widgets()
+	root.add_widget(get.Button(text='back',on_release=listing))
+	root.add_widget(get.Label(text=filename))
+	root.add_widget(get.Button(text='download',on_release=partial(download,filename)))
+	root.add_widget(get.Button(text='rename',on_release=partial(rename,filename)))
 
-def copy(instance=None):
-	load_db()
-	global db
-	if instance.frompage=='remote':
-		if exists(sd1+instance.filename):
-			log(instance.filename+' exists in local')
-		else:
-			try:
-				loading('downloading '+instance.filename)
-				download_file(open(sd1+instance.filename,'wb'),db[instance.filename])
-			except:
-				log('unable to download '+instance.filename)
-			loading()
-			normal()
-	if instance.frompage=='local':
-		if instance.filename in db:
-			log(instance.filename+' exists in remote')
-		else:
-			try:
-				loading('uploading '+instance.filename)
-				db[instance.filename]=upload_file(open(sd1+instance.filename,'rb'),getsize(sd1+instance.filename))
-			except:
-				log('unable to upload '+instance.filename)
-			loading()
-			normal()
-	save_db()
-
-def rename(instance=None):
-	global fg
-	fg.clear_widgets()
-	fg.add_widget(get.Label(text='new name'))
-	t=get.TextInput(multiline=False)
-	t.frompage=instance.frompage
-	t.filename=instance.filename
-	t.bind(on_text_validate=rename_file)
-	fg.add_widget(t)
-
-def rename_file(instance=None):
-	for w in '|/ ()\t\n\\\"\'':
-		instance.text.replace(w,'_')
-	if instance.frompage=='remote':
-		if instance.text in db.keys():
-			log(instance.filename+' exists in remote')
-		else:
-			db[instance.text]=db[instance.filename]
-			del(db[instance.filename])
+def upload(*q,**w):
+	q=filechooser.open_file(multiple=True,title='upload files...')
+	for w in q:
+		w=split(w)[1]
+		load_db()
+		if w in db.keys():
+			log('name '+w+' is used')
+			continue
+		try:
+			f=open(w,'rb')
+		except:
+			log('file '+w+' is unreadable')
+			continue
+		try:
+			s=getsize(w)
+		except:
+			s=None
+		try:
+			db[w]=upload_file(f,s)
 			save_db()
-			normal()
-	if instance.frompage=='local':
-		if exists(sd1+instance.text):
-			log(instance.filename+' exists in local')
-		else:
-			rename_(sd1+instance.filename,sd1+instance.text)
-			normal()
+			listing()
+		except:
+			log('unable to upload file '+q)
 
+def download(filename,*q,**w):
+	q=filechooser.save_file(title='download to...',path=filename)
+	for w in q:
+		load_db()
+		try:
+			f=open(w,'wb')
+		except:
+			log('file '+w+' is unreadable')
+			continue
+		try:
+			download_file(f,db[filename])
+		except:
+			log('unable to download file '+q)
+
+def rename(filename,*q,**w):
+	root.clear_widgets()
+	root.add_widget(get.Button(text='back',on_release=listing))
+	root.add_widget(get.Label(text='new name'))
+	root.add_widget(get.TextInput(text=filename,multiline=False,on_text_validate=partial(rename_file,filename)))
+	root.add_widget(get.Button(text='rename',on_release=partial(rename_file,filename)))
+
+def rename_file(filename,*q,**w):
+	load_db()
+	name=root.children[1].text
+	for w in '|/ ()\t\n\\\"\'':
+		name.replace(w,'_')
+	if name=='':
+		log('name is too short')
+		return
+	if name in db.keys():
+		log('name '+name+' is already used')
+		return
+	db[name]=db[filename]
+	del(db[filename])
+	save_db()
+	listing()
 
 
 def logout(instance=None):
@@ -328,57 +350,35 @@ def save_db():
 	global db
 	db = textfile(dumps(db))
 	try:
-		url = upload_file(db, db.size())
+		url = upload_file(db)
+		d=api(f'storage.set?key=url&value={quote(url)}&user_id={cid}')
+		if d!=1:
+			raise BaseException
 	except:
 		log('unable to save files info')
-	api(f'storage.set?key=url&value={url}&user_id={cid}')
 
-def normal(instance=None):
-	global bg
-	bg.clear_widgets()
-	box1=get.BoxLayout(orientation='vertical')
-	box2=get.BoxLayout(orientation='horizontal',size_hint=(1,.1))
-	b=get.Button(text='local')
-	b.bind(on_release=local)
-	box2.add_widget(b)
-	b=get.Button(text='remote')
-	b.bind(on_release=remote)
-	box2.add_widget(b)
-	b=get.Button(text='logout')
-	b.bind(on_release=logout)
-	box2.add_widget(b)
-	box1.add_widget(box2)
-	global fg
-	fg=get.GridLayout(cols=1,size_hint=(1,.9))
-	box1.add_widget(fg)
-	bg.add_widget(box1)
+
+box=get.BoxLayout
 
 class vk_cloud(App):
 	def build(self):
-		global bg
-		bg=get.GridLayout(cols=1)
+		global root
+		root=box(orientation='vertical')
 		try:
-			global sd1,app
-			sd1='/storage/emulated/0/'
-			app='/storage/emulated/0/'
-#			from pathlib import Path
-#			home=Path.home()
-#			sd1=app=home
-#			from android.permissions import request_permissions, Permission, check_permissions
-#			perms=[Permission.WRITE_EXTERNAL_STORAGE,Permission.READ_EXTERNAL_STORAGE,Permission.INTERNET]
-#			while  not check_permissions(perms):
-#				log('needs all permissions')
-#				request_permissions(perms)
+			perms=[Permission.WRITE_EXTERNAL_STORAGE,Permission.READ_EXTERNAL_STORAGE,Permission.INTERNET]
+			while not check_permissions(perms):
+				log('needs all permissions')
+				request_permissions(perms)
 		except:
 			pass
 		load_cred()
 		global token,gid,cid
-		_ret=normal
 		if not token:
-			_ret=no_token
-		elif not cid or not gid:
-			get_id()
-		_ret()
-		return bg
+			get.Clock.schedule_once(no_token)
+		else:
+			if not cid or not gid:
+				get_id()
+			get.Clock.schedule_once(listing)
+		return root
 
 vk_cloud().run()
