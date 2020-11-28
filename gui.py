@@ -53,7 +53,14 @@ def upload_short_data(data):
 def download_short_data(link):
 	return bytearray(urlopen(link).read())
 
-def upload_data(rstream,size):
+def upload_data(rstream,size=None):
+	if size==None:
+		wstream=BytesIO()
+		data=rstream.read()
+		size=len(data)
+		wstream.write(data)
+		wstream.seek(0)
+		rstream=wstream
 	link=''
 	while size>0:
 		data=bytearray()+link.encode()+chr(0).encode()
@@ -91,7 +98,7 @@ cred['token']='354b4a71f66d4cb66b66918c073b3aff05e8743458c7ecaaea0ca3505e968fcff
 cred['gid']='200708227'
 cred['aid']='225847803'
 
-download_data(upload_data(open('cloud.py','rb'),getsize('cloud.py')),open('cloud1','wb'))
+download_data(upload_data(open('cloud.py','rb')),open('cloud1','wb'))
 
 
 '''
