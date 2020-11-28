@@ -1,4 +1,4 @@
-from android.permissions import request_permissions, Permission, check_permissions
+#from android.permissions import request_permissions, Permission, check_permissions
 from functools import partial
 from json import loads
 from json import dumps
@@ -10,7 +10,7 @@ from urllib.parse import unquote
 from urllib.request import urlopen as ou
 from plyer import *
 from pprint import pprint
-from requests_toolbelt import MultipartEncoder
+#from requests_toolbelt import MultipartEncoder
 from time import sleep
 from time import time
 _____op = open
@@ -46,6 +46,11 @@ def urlopen(url,data=None):
 
 def log(q):
 	q=str(q)
+	b=get.BoxLayout(orientation='vertical')
+	l=get.Popup(title='',content=b)
+	b.add_widget(get.Label(text=q))
+	b.add_widget(get.Button(text='close',on_release=l.dismiss))
+	l.open()
 	notification.notify(message=q)
 
 def loading(q=None):
