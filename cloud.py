@@ -1,27 +1,15 @@
 
 
-""":"
-python3 $0 $@
-exit
-":"""
-
 from pathlib import Path
 from sys import argv
 from urllib.request import urlopen
-from json import loads
-from json import dumps
-from urllib.parse import quote
-from time import sleep
-from time import time
-from time import asctime
-from traceback import format_exc as fo
-from requests import post
-from http.server import BaseHTTPRequestHandler, HTTPServer
-_____op = open
-exec('from os import *')
-exec('from os.path import *')
-open = _____op
-
+from json import *
+from time import *
+from traceback import format_exc
+post=__import__('requests').post
+from os import *
+from os.path import *
+from builtins import *
 
 def api(path, data=''):
     if path and path[-1] not in '&?':
