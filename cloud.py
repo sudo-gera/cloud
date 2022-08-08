@@ -33,12 +33,6 @@ def api(path, data=''):
         print(ret)
 
 
-def log(p=None):
-    if p is None:
-        print(' ' * wid, end='\r')
-    else:
-        print('#' * int(p * wid), end='\r')
-
 
 home = str(Path.home())
 if home[-1] != '/':
@@ -67,6 +61,13 @@ try:
     wid = get_terminal_size()[0]
 except BaseException:
     wid = 0
+
+def log(p=None):
+    if p is None:
+        print(' ' * wid, end='\r')
+    else:
+        print('#' * int(p * wid), end='\r')
+
 
 if cid is None or gid is None:
     mes = api('messages.getConversations')['items']
@@ -108,7 +109,7 @@ if cid is None or gid is None:
 def post_data(data):
     name = str(time()) + '.txt'
     open(home + '.cloud.tmp', 'wb').write(data)
-    url = api(f'docs.getMessagesUploadServer?peer_id={cid}')['upload_url']
+    url = api(f'docs.getWallUploadServer?group_id={gid}')['upload_url']
     r = post(
         url,
         files={
