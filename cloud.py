@@ -26,10 +26,12 @@ def api(path, data=''):
             path +
             'v=5.101&access_token=' +
             token,
-            data=data).read().decode())
+            data=data
+        ).read().decode()
+    )
     try:
         return ret['response']
-    except BaseException:
+    except Exception:
         print(ret)
 
 
@@ -59,7 +61,7 @@ cid = group['cid']
 
 try:
     wid = get_terminal_size()[0]
-except BaseException:
+except Exception:
     wid = 0
 
 def log(p=None):
