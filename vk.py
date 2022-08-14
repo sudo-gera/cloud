@@ -2,6 +2,7 @@ from base64 import b64decode, b64encode
 from pathlib import Path
 from traceback import format_exc
 from urllib.request import urlopen
+import urllib.request
 import time
 import json
 post=__import__('requests').post
@@ -40,6 +41,19 @@ group = json.loads(open(home + '.cloud.token').read())
 token = group['token']
 gid = group['gid']
 cid = group['cid']
+
+def firefox(url):
+    req = urllib.request.Request(
+        url, 
+        data=None, 
+        headers={
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
+        }
+    )
+
+    f = urllib.request.urlopen(req)
+    return f.read()
+
 
 def vk_db():
     db_max_size=100_000_000
@@ -94,7 +108,24 @@ def vk_db():
             data[w]=data[w]*pow(27,c,256)%256
         return data[:len(data)-c]
 
-    return put,get,db_max_size
+    def root_set(root):
+        root=b64encode(root.encode()).decode()
+        try:
+            api(f'storage.set?user_id={cid}&key=root&value={root}')
+        except Exception:
+            print(format_exc())
+
+    def root_get():
+        try:
+            root=api(f'storage.get?user_id={cid}&key=root')
+            if root:
+                return b64decode(root.encode()).decode()
+            else:
+                return None
+        except Exception:
+            print(format_exc())
+
+    return put,get,db_max_size,root_set,root_get
 
 def local_db():
     db_max_size=40
@@ -149,8 +180,8 @@ def local_db():
 
 
 
-short_put,short_get,db_max_size,root_set,root_get=local_db()
-# short_put,short_get,db_max_size=vk_db()
+# short_put,short_get,db_max_size,root_set,root_get=local_db()
+short_put,short_get,db_max_size,root_set,root_get=vk_db()
 
 __all__=['short_put','short_get','db_max_size','root_get','root_set']
 

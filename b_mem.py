@@ -344,7 +344,7 @@ class b:
     def getstr(self,d=0):
         self.s=upd(self.s)
         if d==0:
-            return put(self.s.encode(),m=2048)
+            return put(self.s.encode(),m=1)
 
     def __del__(self):
         self.getstr(d=1)

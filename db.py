@@ -2,20 +2,20 @@ from textwrap import shorten
 from vk import *
 import io
 import json
-def _put(file,m=float('inf')):
+def _put(file,m=16):
     a=[]
     while (c:=file.read(db_max_size)):
         a.append(short_put(c))
     j=json.dumps(a).encode()
-    if len(a)>16 or len(j)>=m:
-        a=put(io.BytesIO(j))
+    if len(a)>m:
+        a=_put(io.BytesIO(j))
         if type(a[0])==str:
             a=[1]+a
         else:
             a[0]+=1
     return a
 
-def put(file,m=float('inf')):
+def put(file,m=16):
     if type(file) in [bytes,bytearray]:
         file=io.BytesIO(file)
     return json.dumps(_put(file,m))

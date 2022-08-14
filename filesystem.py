@@ -31,8 +31,12 @@ class filesystem:
         return self.fs.getstr()
     def setstr(self,s):
         self.fs=d(s)
+    def sync(self):
+        if type(self.fs.b.s)!=str:
+            root_set(self.getstr())
     def __del__(self):
-        root_set(self.getstr())
+        if type(self.fs.b.s)!=str:
+            print('error: not synced')
 
 fs=filesystem()
 
