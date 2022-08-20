@@ -1,146 +1,151 @@
-from base64 import b64decode, b64encode
-from pathlib import Path
-from traceback import format_exc
-from urllib.request import urlopen
+import base64
+import pathlib
+import traceback
+from typing import Any
 import urllib.request
 import time
 import json
-post=__import__('requests').post
+import requests
 import random
-from builtins import open
+import builtins
 
-home = str(Path.home())
-if home[-1] != '/':
-    home += '/'
+__all__ = [
+    'short_put',
+    'short_get',
+    'db_max_size',
+    'root_get',
+    'root_set',
+    'home']
 
-def api(path):
-    if path and path[-1] not in '&?':
-        if '?' in path:
-            path += '&'
-        else:
-            path += '?'
-    time.sleep(1 / 6)
-    global token
-    u=path
-    try:
-        u=urlopen(
+home = str(pathlib.Path.home()) + '/'
+
+
+def vk_db():
+    group = json.loads(builtins.open(home + '.cloud.token').read())
+    token = group['token']
+    gid = group['gid']
+    cid = group['cid']
+    db_max_size = 100_000_000
+
+    def api(path: str):
+        if path and path[-1] not in '&?':
+            if '?' in path:
+                path += '&'
+            else:
+                path += '?'
+        time.sleep(1 / 6)
+        data: Any = path
+        try:
+            data = urllib.request.urlopen(
                 'https://api.vk.com/method/' +
                 path +
                 'v=5.101&access_token=' +
                 token,
             ).read()
-        u=u.decode()
-        u=json.loads(u)
-        u=u['response']
-    except Exception:
-        print(u)
-        print(format_exc())
-    return u
+            data = data.decode()
+            data = json.loads(data)
+            data = data['response']
+        except Exception:
+            print(data)
+            print(traceback.format_exc())
+        return data
 
-group = json.loads(open(home + '.cloud.token').read())
-token = group['token']
-gid = group['gid']
-cid = group['cid']
-
-def firefox(url):
-    req = urllib.request.Request(
-        url, 
-        data=None, 
-        headers={
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
-        }
-    )
-
-    f = urllib.request.urlopen(req)
-    return f.read()
-
-
-def vk_db():
-    db_max_size=100_000_000
-    def put(data):
-        data=bytearray(data)
-        assert type(data) in [bytes,bytearray]
-        assert len(data)<=db_max_size
-        c=0
-        while 1:
+    def put(data: bytes) -> str:
+        assert isinstance(data, bytes)
+        assert len(data) <= db_max_size
+        data = bytearray(data)
+        c = 0
+        for w in range(len(data)):
+            data[w] = data[w] * 19 % 256
+        data.append(random.randint(0, 255))
+        c += 1
+        while True:
             name = str(time.time()) + '.txt'
             url = api(f'docs.getWallUploadServer?group_id={gid}')['upload_url']
-            r = post(url,files={'file': (name,data)}).json()
-            url = api('docs.save?file=' + r['file'] + '&title=' + name)['doc']['url']
-            u=urlopen(url)
-            i=0
-            while i<len(data):
-                r=list(u.read(1))
-                if r!=[data[i]]:
+            r = requests.post(url, files={'file': (name, data)}).json()
+            url = api(
+                'docs.save?file=' +
+                r['file'] +
+                '&title=' +
+                name)['doc']['url']
+            u = urllib.request.urlopen(url)
+            i = 0
+            while i < len(data):
+                r = list(u.read(1))
+                if r != [data[i]]:
                     for w in range(len(data)):
-                        data[w]=data[w]*19%256
-                    data.append(random.randint(0,255))
-                    c+=1
+                        data[w] = data[w] * 19 % 256
+                    data.append(random.randint(0, 255))
+                    c += 1
                     break
                 else:
-                    i+=1
+                    i += 1
             else:
-                r=list(u.read())
-                if r!=[]:
+                r = list(u.read())
+                if r != []:
                     for w in range(len(data)):
-                        data[w]=data[w]*19%256
-                    data.append(random.randint(0,255))
-                    c+=1
+                        data[w] = data[w] * 19 % 256
+                    data.append(random.randint(0, 255))
+                    c += 1
                 else:
-                    if c<16:
-                        return hex(c)[2:]+url[len('https://'):]
+                    if c < 16:
+                        return hex(c)[2:] + url[len('https://'):]
                     else:
-                        return '|'+hex(c)[2:]+'|'+url[len('https://'):]
+                        return '|' + hex(c)[2:] + '|' + url[len('https://'):]
 
-    def get(link):
-        if link[0]=='|':
-            link=link[1:]
-            c=link[:link.index('|')]
-            link=link[len(c)+1:]
+    def get(link: str) -> bytes:
+        c: str | int
+        if link[0] == '|':
+            link = link[1:]
+            c = link[:link.index('|')]
+            link = link[len(c) + 1:]
         else:
-            c=link[0]
-            link=link[1:]
-        c=int(c,16)
-        link='https://'+link
-        data=urlopen(link).read()
-        data=bytearray(data)
+            c = link[0]
+            link = link[1:]
+        c = int(c, 16)
+        link = 'https://' + link
+        data = urllib.request.urlopen(link).read()
+        data = (data)
         for w in range(len(data)):
-            data[w]=data[w]*pow(27,c,256)%256
-        return data[:len(data)-c]
+            data[w] = data[w] * pow(27, c, 256) % 256
+        return bytes(data[:len(data) - c])
 
-    def root_set(root):
-        root=b64encode(root.encode()).decode()
+    def root_set(root: str) -> None:
+        root = base64.b64encode(root.encode()).decode()
         try:
             api(f'storage.set?user_id={cid}&key=root&value={root}')
         except Exception:
-            print(format_exc())
+            print(traceback.format_exc())
 
-    def root_get():
+    def root_get() -> str | None:
         try:
-            root=api(f'storage.get?user_id={cid}&key=root')
+            root = api(f'storage.get?user_id={cid}&key=root')
             if root:
-                return b64decode(root.encode()).decode()
+                return base64.b64decode(root.encode()).decode()
             else:
                 return None
         except Exception:
-            print(format_exc())
+            print(traceback.format_exc())
+        return None
 
-    return put,get,db_max_size,root_set,root_get
+    return put, get, db_max_size, root_set, root_get
+
 
 def local_db():
-    db_max_size=40
-    to_sleep=0.1
-    def put(data):
-        assert type(data) in [bytes,bytearray]
-        assert len(data)<=db_max_size
-        # time.sleep(to_sleep)
-        # time.sleep(1.3623757362365723)
+    db_max_size = 40
+
+    def put(data: bytes) -> str:
+        assert isinstance(data, bytes)
+        assert len(data) <= db_max_size
         try:
-            db=json.loads(open(home+'.cloud.json',encoding='utf-8').read())
+            db = json.loads(
+                builtins.open(
+                    home + '.cloud.json',
+                    encoding='utf-8').read())
         except Exception:
-            db={}
+            db = {}
         k = ''
-        while k=='' or k in db:
+        while k == '' or k in db:
             k = ''.join(
                 [
                     chr(
@@ -150,38 +155,41 @@ def local_db():
                     )
                 ]
             )
-        db[k] = b64encode(data).decode()
-        open(home+'.cloud.json','w',encoding='utf-8').write(json.dumps(db))
+        db[k] = base64.b64encode(data).decode()
+        builtins.open(home + '.cloud.json', 'w',
+                      encoding='utf-8').write(json.dumps(db))
         return k
 
-    def get(key):
-        # time.sleep(to_sleep)
-        # time.sleep(0.22823095321655273)
-        db=json.loads(open(home+'.cloud.json').read())
-        return b64decode(db[key].encode())
+    def get(key: str) -> bytes:
+        db = json.loads(builtins.open(home + '.cloud.json').read())
+        return base64.b64decode(db[key].encode())
 
-    def root_set(root):
+    def root_set(root: str) -> None:
         try:
-            db=json.loads(open(home+'.cloud.json',encoding='utf-8').read())
+            db = json.loads(
+                builtins.open(
+                    home + '.cloud.json',
+                    encoding='utf-8').read())
         except Exception:
-            db={}
-        db['']=root
-        open(home+'.cloud.json','w',encoding='utf-8').write(json.dumps(db))
+            db = {}
+        db[''] = root
+        builtins.open(home + '.cloud.json', 'w',
+                      encoding='utf-8').write(json.dumps(db))
 
-    def root_get():
+    def root_get() -> str | None:
         try:
-            db=json.loads(open(home+'.cloud.json',encoding='utf-8').read())
+            db = json.loads(
+                builtins.open(
+                    home + '.cloud.json',
+                    encoding='utf-8').read())
         except Exception:
-            db={}
+            db = {}
         if '' in db:
             return db['']
+        return None
 
-    return put,get,db_max_size,root_set,root_get
+    return put, get, db_max_size, root_set, root_get
 
 
-
-# short_put,short_get,db_max_size,root_set,root_get=local_db()
-short_put,short_get,db_max_size,root_set,root_get=vk_db()
-
-__all__=['short_put','short_get','db_max_size','root_get','root_set']
-
+short_put, short_get, db_max_size, root_set, root_get = local_db()
+# short_put,short_get,db_max_size,root_set,root_get=vk_db()
