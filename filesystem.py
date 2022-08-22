@@ -14,30 +14,24 @@ import time
 
 
 class directory:
-    def __init__(self,*,key=None,content=None):
-        self.key=key
-        self.content=content
+    def __init__(self,*,val=url()):
+        if type(val)==url:
+            self.content=d(val)
+            self.key=val
+        elif type(val)==d:
+            self.content=val
+            self.key=None
     def __getitem__(self,k):
-        if self.content==None:
-            self.content=d(self.key)
         return self.content[k]
     def __setitem__(self,k,v):
-        if self.content==None:
-            self.content=d(self.key)
         self.content[k]=v
         self.key=None
     def __detitem__(self,k):
-        if self.content==None:
-            self.content=d(self.key)
         del self.content[k]
         self.key=None
     def getstr(self):
-        if self.key!=None:
-            return self.key
         return self.content.getstr()
     def to_dict(self):
-        if self.content==None:
-            self.content=d(self.key)
         return self.content.to_dict()
 
 

@@ -1,11 +1,12 @@
 import base64
-from typing import overload
+from typing import Any, overload
 from vk import *
 import io
 import json
 import time
+from builtins import open
 
-__all__ = ['put', 'get', 'root_get', 'root_set', 'home']
+__all__ = ['put', 'get', 'root_get', 'root_set', 'home', 'url','typechecked']
 
 
 class cache():
@@ -38,6 +39,28 @@ class cache():
             self.db[:1] = []
 
 
+class url:
+    def __init__(self, s=''):
+        self.s = s
+
+    def __str__(self):
+        return self.s
+
+    def __repr__(self):
+        return 'url(' + self.s + ')'
+
+    def __bool__(self):
+        return bool(self.s)
+    
+    def __eq__(self,o)->bool:
+        print('err')
+        assert 0
+
+    def __ne__(self,o)->bool:
+        print('err')
+        assert 0
+
+@typechecked
 def _put(file: io.BytesIO, m: int = 16) -> list[int | str]:
     a: list[int | str] = []
     while (c := file.read(db_max_size)):
@@ -52,7 +75,8 @@ def _put(file: io.BytesIO, m: int = 16) -> list[int | str]:
     return a
 
 
-def put(data: io.BytesIO | bytes, m: int = 16) -> str:
+@typechecked
+def put(data: io.BytesIO | bytes, m: int = 16) -> url:
     if isinstance(data, bytes):
         file = io.BytesIO(data)
     else:
@@ -61,17 +85,22 @@ def put(data: io.BytesIO | bytes, m: int = 16) -> str:
     if isinstance(data, bytes):
         c = cache()
         c[j] = data
-    return j
+    return url(j)
+
 
 @overload
-def get(a: str, f: io.BytesIO) -> io.BytesIO:
+def get(ua: url, f: io.BytesIO) -> io.BytesIO:
     ...
+
 
 @overload
-def get(a: str) -> bytes:
+def get(ua: url) -> bytes:
     ...
 
-def get(a: str, f: io.BytesIO | None = None) -> io.BytesIO | bytes:
+
+@typechecked
+def get(ua: url, f: io.BytesIO | None = None) -> io.BytesIO | bytes:
+    a: Any = str(ua)
     q = a
     if f is None:
         ca = cache()

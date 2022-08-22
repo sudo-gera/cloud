@@ -1,78 +1,25 @@
+from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 import functools
-import time
 import json
+import traceback
 import typing
 import random
-# if __name__!='__main__'
-#     from db import *
+from db import *
 
-def treeprint(*a):
-    pass
+__all__ = [
+    'b_dict',
+    'b_set',
+    'put',
+    'get',
+    'root_get',
+    'root_set',
+    'home',
+    'url',
+    'typechecked'
+]
 
-exec(open('../c/treeprint.py').read())
-
-
-__all__ = ['d', 'put', 'get', 'root_set', 'root_get', 'home']
-
-# class l:
-
-#     def __init__(self, r, t=None):
-#         self.r = r
-#         self.l = t.l if isinstance(t, l) else t if t is not None else []
-
-#     def __getitem__(self, k):
-#         return self.l[k]
-
-#     def __len__(self):
-#         return len(self.l)
-
-#     def index(self, v):
-#         return self.l.index(v)
-
-#     def cl(self):
-#         return self.l[:]
-
-#     def __repr__(self):
-#         return 'l'+repr(self.l)
-
-# class n:
-
-#     def __init__(self, r, t=None):
-#         self.r = r
-#         self.n = t.n if isinstance(t, n) else t if t is not None else []
-
-#     def __getitem__(self, k):
-#         return self.n[k]
-
-#     def __len__(self):
-#         return len(self.n)
-
-#     def index(self, v):
-#         return self.n.index(v)
-
-#     def cl(self):
-#         return self.n[:]
-
-#     def __repr__(self):
-#         return 'n'+repr(self.n)
-
-
-class assigner:
-    def __init__(self, **d):
-        self.__dict__ |= d
-
-    def __getitem__(self, n):
-        return assigner(n=n, **self.__dict__)
-
-    def __lshift__(self, v):
-        return assigner(v=v, **self.__dict__)
-
-
-data = assigner(s='data')
-next = assigner(s='next')
-
-max_len = 2
+max_len = 64
 
 
 class Comparable(metaclass=ABCMeta):
@@ -81,304 +28,260 @@ class Comparable(metaclass=ABCMeta):
 
 
 T = typing.TypeVar('T', bound=Comparable)
+T = typing.TypeVar('T')  # type: ignore
 
 
 class node(typing.Generic[T]):
 
-    # def __repr__(self):
-    #     return 'node'+repr((self._data,self._next))
+    def __repr__(self):
+        return 'node' + repr((self._data, self._down))
 
-    def __init__(self,
-                 *,
-                 data: list[T] | tuple[T,
-                                          ...] | None = None,
-                 next: 'list[node[T]]|tuple[node[T],...]|None' = None,
-                 key: str = None):
-        self._data = tuple(data) if data is not None else None
-        self._next = tuple(next) if next is not None else None
+    @typechecked
+    def __init__(self, key: url | Node = None, **kw):
+        self.key: url | None
+        self.kw: dict[str, list]
+        if isinstance(key, node):
+            kw |= key.kw
+            key = key.key
+        for w in kw:
+            kw[w] = list(kw[w])
+        assert key is None or isinstance(key, url)
         self.key = key
+        self.kw = kw
 
     def load(self):
-        if self._next is None or self._data is None:
-            n = loads(self.key)
-            self._next, self._data = n._next, n._data
-            self._next = tuple(
-                [w if isinstance(w, node | None) else node(key=w) for w in self._next])
+        if not self.kw:
+            qd = json.loads(get(self.key).decode())
+            self.kw = {
+                'data': [
+                    item(*w) if len(w) == 2 else w[0] for w in qd['data']
+                ],
+                'down': [
+                    node(url(w)) if w else None for w in qd['down']
+                ],
+            }
+        assert all([isinstance(w, node | None) for w in self.kw['down']])
 
-    @property
-    def next(self) -> 'tuple[node[T],...]':
+    @property  # type: ignore
+    @typechecked
+    def down(self) -> list[tn]:
         self.load()
-        assert isinstance(self._next, tuple)
-        return self._next
+        return self.kw['down']
 
-    @property
-    def data(self) -> tuple[T, ...]:
+    @property  # type: ignore
+    @typechecked
+    def data(self) -> list[T]:
         self.load()
-        assert isinstance(self._data, tuple)
-        return self._data
+        return self.kw['data']
 
-    def __ilshift__(self, a):
-        data, next = list(self.data), list(self.next)
-        exec(f'{a.s}[a.n]=a.v')
-        del a.n, a.v
-        return node(data=data, next=next)
+    def mutable(self) -> node[T]:
+        self.load()
+        r: node = node(self)
+        r.key = None
+        return r
 
+    @staticmethod
+    @typechecked
+    def dumps(self: Node) -> url:
+        if self is None:
+            return url()
+        assert isinstance(self, node)
+        if self.key is not None:
+            return self.key
+        r = {
+            'data': [item(w).to_list() if isinstance(w, item) else [w] for w in self.data],
+            'down': [str(node.dumps(w)) for w in self.down]
+        }
+        er = json.dumps(r).encode()
+        u = put(er)
+        self.key = u
+        return u
 
-@typing.overload
-def upd(self: node | str) -> str:
-    ...
-
-
-@typing.overload
-def upd(self: None) -> None:
-    ...
-
-
-def upd(self: node[T] | str | None) -> str | None:
-    if isinstance(self, str) or self is None:
+    @staticmethod
+    @typechecked
+    def insert(self: node[T], k: T):
+        self = self.mutable()
+        if k in self.data:
+            t = self.data.index(k)
+            self.data[t] = k
+        elif self.down[0] is None:
+            w = 0
+            while w < len(self.data) and self.data[w] < k:
+                w += 1
+            self.data[w:w] = [k]
+            self.down[:0] = [None]
+        else:
+            w = 0
+            while w < len(self.data) and self.data[w] < k:
+                w += 1
+            self.down[w] = node.insert(self.down[w], k)
+            if len(self.down[w].data) > max_len:
+                assert len(self.down[w].data) == 1 + max_len
+                q: Node
+                a: Node
+                q = self.down[w].mutable()
+                a = q.mutable()
+                a.data[max_len // 2:] = []
+                a.down[max_len // 2 + 1:] = []
+                kw = q.data[max_len // 2]
+                q.data[:max_len // 2 + 1] = []
+                q.down[:max_len // 2 + 1] = []
+                self.data[w:w] = [kw]
+                self.down[w:w + 1] = [a, q]
         return self
-    assert isinstance(self, node)
-    if self.key is not None:
-        return self.key
-    assert self._next is not None
-    assert self._data is not None
-    z: typing.Any = 0
-    r = {
-        'data': tuple([item(w).to_list() if isinstance(w, item) else [w] for w in self._data]),
-        'next': tuple([upd(w) for w in self._next])
-    } if self is not None else None
-    er = json.dumps(r).encode()
-    return put(er)
 
-
-def loads(self: node[T] | str) -> node | None:
-    if isinstance(self, node) or self is None:
-        return self
-    assert isinstance(self, str)
-    z = self
-    qd = json.loads(get(z).decode())
-    if qd is not None:
-        qd['data'] = [item(*w) if len(w) == 2 else w[0]
-                         for w in qd['data']]
-    return node(**qd, key=z) if qd is not None else qd
-
-
-# def check(self, r=1):
-#     assert len(self.data) + 1 == len(self.next)
-#     assert len(self.data) <= max_len
-#     if self.next[0] is None:
-#         assert list(self.data) == sorted(self.data)
-#     assert r or max_len // 2 <= len(self.data)
-#     if self.next[0] is None:
-#         return [self.data[0], self.data[-1]]
-#     a = [check(w, 0) for w in self.next]
-#     for w in range(len(self.data)):
-#         assert a[w][1] < self.data[w] < a[w + 1][0]
-#     return [a[0][0], a[-1][1]]
-
-
-def insert(self:node[T], k:T):
-    if k in self.data:
-        t = self.data.index(k)
-        self = node(next=self.next, data=self.data[:t] + (k,) + self.data[t + 1:])
-    elif self.next[0] is None:
+    @staticmethod
+    @typechecked
+    def find(self: node[T], k: T) -> list[tuple[node[T], int]] | None:
+        if k in self.data:
+            return [(self, self.data.index(k))]
+        if self.down[0] is None:
+            return None
         w = 0
         while w < len(self.data) and self.data[w] < k:
             w += 1
-        self = node(data=self.data[:w] + (k,) + self.data[w:], next=(None,) + self.next)
-    else:
-        w = 0
-        while w < len(self.data) and self.data[w] < k:
-            w += 1
-        self = node(data=self.data, next=self.next[:w] +
-                 (insert(self.next[w], k),) + self.next[w + 1:])
-        if len(self.next[w].data) > max_len:
-            assert len(self.next[w].data) == 1 + max_len
-            q = self.next[w]
-            a = node(data=q.data[:max_len // 2],
-                     next=q.next[:max_len // 2 + 1])
-            d = q.data[max_len // 2]
-            q = node(data=q.data[max_len // 2 + 1:],
-                     next=q.next[max_len // 2 + 1:])
-            self = node(next=self.next[:w] + (a, q,) + self.next[w + 1:],
-                     data=self.data[:w] + (d,) + self.data[w:])
-    return self
+        r = node.find(self.down[w], k)
+        if r is not None:
+            r.append((self, w))
+        return r
 
-
-def find(self: node[T], k: T) -> list[tuple[node[T], int]]:
-    if k in self.data:
-        return [(self, self.data.index(k))]
-    if self.next[0] is None:
-        return None
-    w = 0
-    while w < len(self.data) and self.data[w] < k:
-        w += 1
-    r = find(self.next[w], k)
-    if r is not None:
-        r.append((self, w))
-    return r
-
-
-def erase(self:node[T], k:T)->node[T]:
-    if self.next[0] is None:
-        t = self.data.index(k)
-        self = node(data=self.data[:t] + self.data[t + 1:], next=self.next[1:])
-    else:
-        w = 0
-        while w < len(self.data) and self.data[w] < k:
-            w += 1
-        self = node(data=self.data, next=self.next[:w] +
-                 (erase(self.next[w], k),) + self.next[w + 1:])
-        if len(self.next[w].data) < max_len // 2:
-            assert len(self.next[w].data) == max_len // 2 - 1
-            if w:
-                if len(self.next[w - 1].data) == max_len // 2:
-                    self = node(data=self.data, next=self.next[:w -1] +
-                             (node(data=self.next[w -
-                                               1].data +
-                                   (self.data[w -
-                                           1],) +
-                                   self.next[w].data, next=self.next[w -
-                                                                    1].next +
-                                   self.next[w].next),) +
-                             self.next[w:])
-                    self = node(data=self.data[:w - 1] + self.data[w:],
-                             next=self.next[:w] + self.next[w + 1:])
+    @staticmethod
+    @typechecked
+    def erase(self: node[T], k: T) -> node[T]:
+        t: Node
+        self = self.mutable()
+        if self.down[0] is None:
+            t = self.data.index(k)
+            self.data[t:t + 1] = []
+            self.down[:1] = []
+        else:
+            w = 0
+            while w < len(self.data) and self.data[w] < k:
+                w += 1
+            self.down[w] = node.erase(self.down[w], k)
+            if len(self.down[w].data) < max_len // 2:
+                assert len(self.down[w].data) == max_len // 2 - 1
+                e = w - 1 if w else w + 1
+                q = max(w, e)
+                r = min(w, e)
+                if len(self.down[e].data) == max_len // 2:
+                    t = self.down[q].mutable()
+                    t.data[:0] = self.down[r].data + [self.data[r]]
+                    t.down[:0] = self.down[r].down
+                    self.down[r:q + 1] = [t]
+                    self.data[r:q] = []
                 else:
-                    self = node(data=self.data,
-                             next=self.next[:w] + (node(data=(self.data[w - 1],) + self.next[w].data,
-                                                     next=(self.next[w - 1].next[-1],) + self.next[w].next),) + self.next[w + 1:])
-                    self = node(
-                        next=self.next, data=self.data[:w - 1] + (self.next[w - 1].data[-1],) + self.data[w:])
-                    self = node(data=self.data,
-                             next=self.next[:w - 1] + (node(data=self.next[w - 1].data[:-1],
-                                                         next=self.next[w - 1].next[:-1]),) + self.next[w:])
-            elif len(self.next[w + 1].data) == max_len // 2:
-                self = node(data=self.data, next=self.next[:w] +
-                         (node(data=self.next[w].data +
-                               (self.data[w],) +
-                               self.next[w +
-                                      1].data, next=self.next[w].next +
-                               self.next[w +
-                                      1].next),) +
-                         self.next[w +
-                                1:])
-                self = node(data=self.data[:w] + self.data[w + 1:],
-                         next=self.next[:w + 1] + self.next[w + 2:])
-            else:
-                self = node(data=self.data,
-                         next=self.next[:w] + (node(data=self.next[w].data + (self.data[w],),
-                                                 next=self.next[w].next + (self.next[w + 1].next[0],)),) + self.next[w + 1:])
-                self = node(next=self.next,
-                         data=self.data[:w] + (self.next[w + 1].data[0],) + self.data[w + 1:])
-                self = node(data=self.data,
-                         next=self.next[:w + 1] + (node(data=self.next[w + 1].data[1:],
-                                                     next=self.next[w + 1].next[1:]),) + self.next[w + 2:])
-    return self
+                    t = self.down[w].mutable()
+                    l = (q - w) * len(t.down)
+                    t.data[l:l] = [self.data[r]]
+                    t.down[l:l] = [self.down[e].down[e - q]]
+                    self.down[w] = t
+                    self.data[r] = self.down[e].data[e - q]
+                    t = self.down[e].mutable()
+                    t.data[e - q: len(t.data) * (q - e) + (q - w)] = []
+                    t.down[e - q: len(t.down) * (q - e) + (q - w)] = []
+                    self.down[e] = t
+        return self
 
-def to_list(self: node[T], l: list[T]) -> list[T]:
-    if self.next[0] is None:
-        for w in self.data:
-            l.append(w)
-    else:
-        to_list(self.next[0], l)
-        for w in range(len(self.data)):
-            l.append(self.data[w])
-            to_list(self.next[w + 1], l)
-    return l
+    @staticmethod
+    @typechecked
+    def to_list(self: node[T], l: list[T]) -> list[T]:
+        if self.down[0] is None:
+            for w in self.data:
+                l.append(w)
+        else:
+            node.to_list(self.down[0], l)
+            for w in range(len(self.data)):
+                l.append(self.data[w])
+                node.to_list(self.down[w + 1], l)
+        return l
+
+    @staticmethod
+    @typechecked
+    def chval(self: node[T], a, t, kw, n) -> node[T]:
+        self = self.mutable()
+        if n:
+            v = a[n][1]
+            self.down[v] = node.chval(self.down[v], a, t, kw, n - 1)
+        else:
+            self.data[t] = kw
+        return self
 
 
-def chval(self: node[T], a, t, d, n) -> node[T]:
-    if n:
-        v = a[n][1]
-        self = node(data=self.data,
-                    next=self.next[:v] + (chval(self.next[v],
-                                                    a,
-                                                    t,
-                                                    d,
-                                                    n - 1),) + self.next[v + 1:])
-    else:
-        self = node(next=self.next,
-                    data=self.data[:t] + (d,
-                                                ) + self.data[t + 1:])
-    return self
+Node = node[T] | None
+tn = node
+tn = Node  # type: ignore
 
 
-class b:
+class b_set:
 
-    def __init__(self, s=None):
-        self.s = None
-        if s is not None:
-            self.s = get(s).decode()
-
-    # def check(self):
-    #     return
-    #     if self.s is not None:
-    #         check(self.s)
+    def __init__(self, u: url = url()):
+        self.root: Node = None
+        if u:
+            self.root = node(url(get(u).decode()))
 
     def add(self, v):
-        r = loads((self.s)) if self.s is not None else self.s
-        q = node(data=[], next=[r])
-        q = insert(q, v)
-        r = q
-        if not r.data:
-            r = r.next[0]
-        # r = upd(r)
-        self.s = r
-        # self.s=(dumps(r)) if r!=None else r
+        q = node(data=[], down=[self.root, ])
+        q = node.insert(q, v)
+        if not q.data:
+            q = q.down[0]
+        self.root = q
 
     def find(self, v):
-        r = loads((self.s)) if self.s is not None else self.s
+        r = self.root
         if r is None:
             return []
-        f = find(r, v)
+        f = node.find(r, v)
         if f is None:
             return []
-        f = f[0][0]
-        return [f.data[f.data.index(v)]]
+        f = f[0]
+        return [f[0].data[f[1]]]
 
     def remove(self, v):
-        r = loads((self.s)) if self.s is not None else self.s
+        r = self.root
         if r is None:
             return
-        a = find(r, v)
+        a = node.find(r, v)
         if a is None:
             return
         a = a[::-1]
-        if a[-1][0].next[0] is not None:
-            t = a[-1][0].next[a[-1][0].data.index(v) + 1]
-            while t.next[0] is not None:
-                t = t.next[0]
-            d = t.data[0]
-            r = erase(r, d)
-            a = find(r, v)
+        if a[-1][0].down[0] is not None:
+            t = a[-1][0].down[a[-1][0].data.index(v) + 1]
+            while t.down[0] is not None:
+                t = t.down[0]
+            kw = t.data[0]
+            r = node.erase(r, kw)
+            a = node.find(r, v)
             t = a[0][0].data.index(v)
-            r = chval(r, a, t, d, len(a) - 1)
+            r = node.chval(r, a, t, kw, len(a) - 1)
         else:
-            r = erase(r, v)
+            r = node.erase(r, v)
         if len(r.data) == 0:
-            r = r.next[0]
-        # r = upd(r)
-        self.s = r
-        # self.s=(dumps(r)) if r!=None else r
+            r = r.down[0]
+        self.root = r
 
-    # def __repr__(self):
-    #     r = loads((self.s)) if self.s is not None else self.s
-    #     return ''
+    def __repr__(self):
+        r = self.root
+        return repr(r)
 
+    @typechecked
     def to_list(self) -> list:
-        r = loads((self.s)) if self.s is not None else self.s
+        r = self.root
         if r is None:
             return []
-        return to_list(r, [])
+        return node.to_list(r, [])
 
-    def getstr(self, d=0):
-        self.s = upd(self.s)
-        if d == 0:
-            return put(self.s.encode(), m=1) if self.s is not None else self.s
+    @typechecked
+    def getstr(self) -> url:
+        x = node.dumps(self.root)
+        return put(str(x).encode(), m=1) if x else x
 
     def __del__(self):
-        self.getstr(d=1)
+        try:
+            node.dumps(self.root)
+        except Exception:
+            print(traceback.format_exc())
+        assert self.root is None or self.root.key, 'All unsaved data was deleted!'
 
 
 @functools.total_ordering
@@ -396,141 +299,138 @@ class item:
     def __eq__(self, o):
         return self.k == o.k
 
-    # def __repr__(self):
-    #     return 'item' + repr([self.k, self.v])
+    def __repr__(self):
+        return 'item' + repr((self.k, self.v))
 
     def to_list(self):
         return [self.k, self.v]
 
 
-class d:
+class b_dict:
 
-    def __init__(self, s=None):
-        self.b = b(s)
+    def __init__(self, u: url = url()):
+        self.b_set = b_set(u)
 
     def __getitem__(self, k):
-        return self.b.find(item(k))[0].v
+        return self.b_set.find(item(k))[0].v
 
     def __setitem__(self, k, v):
-        self.b.add(item(k, (v)))
+        self.b_set.add(item(k, (v)))
 
     def __delitem__(self, k):
-        self.b.remove(item(k))
+        self.b_set.remove(item(k))
 
-    # def __repr__(self):
-    #     return repr(self.b)
+    def __repr__(self):
+        return repr(self.b_set)
 
     def __contains__(self, k) -> bool:
-        return bool(self.b.find(item(k)))
+        return bool(self.b_set.find(item(k)))
 
     def to_dict(self) -> dict:
-        r = self.b.to_list()
+        r = self.b_set.to_list()
         r = [w.to_list() for w in r]
         return dict(r)
 
-    def getstr(self) -> str | None:
-        return self.b.getstr()
+    def getstr(self) -> url:
+        return self.b_set.getstr()
 
 
 if __name__ == '__main__':
 
-    to_sleep = 0.0
+    root_set(0.0)
 
-    db_data = {}
+    assert root_get is None
 
-    def put(file, m=16):
-        time.sleep(to_sleep)
-        k = ''
-        while not k or k in db_data:
-            k = ''.join(
-                [
-                    chr(
-                        random.randint(32, 126)
-                    ) for w in range(
-                        random.randint(128, 1024)
-                    )
-                ]
-            )
-        db_data[k] = file
-        return k
-
-    def get(a, f=None):
-        time.sleep(to_sleep)
-        return db_data[a]
-
-    s_s = b()
     sed = random.randint(-9999, 9999)
-    sed=6543
+    # sed = -3676
     print(sed)
     random.seed(sed)
+    s_s = b_set()
     a_s = set()
-    # for w in range(99):
-    #     q = random.choice([0] * 3 + [1] + [2])
-    #     if q == 0:
-    #         r = random.randint(-9999, 9999)
-    #         a_s.add(r)
-    #         s_s.add(r)
-    #     if q == 1:
-    #         r = random.choice(list(a_s)) if a_s and random.randint(
-    #             0, -1 + 2) else random.randint(0, -1 + 9)
-    #         assert (r in a_s) == bool(s_s.find(r))
-    #         assert r not in a_s or s_s.find(r)[0] == r
-    #     if q == 2 and a_s:
-    #         r = random.choice(list(a_s))
-    #         a_s.remove(r)
-    #         s_s.remove(r)
+    for w in range(99):
+        q = random.choice([0] * 3 + [1] + [2])
+        if q == 0:
+            r = random.randint(-9999, 9999)
+            a_s.add(r)
+            s_s.add(r)
+        if q == 1:
+            r = random.choice(list(a_s)) if a_s and random.randint(
+                0, -1 + 2) else random.randint(0, -1 + 9)
+            assert (r in a_s) == bool(s_s.find(r))
+            assert r not in a_s or s_s.find(r)[0] == r
+        if q == 2 and a_s:
+            r = random.choice(list(a_s))
+            a_s.remove(r)
+            s_s.remove(r)
+        f = set(s_s.to_list())
+        assert a_s == f
+
+    # for w in range(199):
+    #     r = random.randint(-9999, 9999)
+    #     a_s.add(r)
+    #     s_s.add(r)
     #     f = set(s_s.to_list())
     #     assert a_s == f
-    # del a_s
-    # a_d: dict[int, int] = dict()
-    # s_d = d()
-    # for w in range(99):
-    #     q = random.choice([0] * 3 + [1] + [2] + [3])
-    #     if q == 0:
-    #         k = random.choice(list(a_d)) if a_d and random.randint(
-    #             0, 1) else random.randint(-9999, 9999)
-    #         v = random.randint(-9999, 9999)
-    #         a_d[k] = v
-    #         s_d[k] = v
-    #     if q == 1:
-    #         k = random.choice(list(a_d)) if a_d and random.randint(
-    #             0, 1) else random.randint(-9999, 9999)
-    #         assert (k in a_d) == (k in s_d)
-    #     if q == 2 and a_d:
-    #         k = random.choice(list(a_d))
-    #         a_d[k] == s_d[k]
-    #     if q == 3 and a_d:
-    #         k = random.choice(list(a_d))
-    #         del a_d[k]
-    #         del s_d[k]
-    #     assert s_d.to_dict() == a_d
-    #     s_d = d(s_d.getstr())
+
+    # while a_s:
+    #     r = random.choice(list(a_s))
+    #     a_s.remove(r)
+    #     s_s.remove(r)
+    #     f = set(s_s.to_list())
+    #     assert a_s == f
+
+    a_d: dict[int, int] = dict()
+    s_d = b_dict()
+    for w in range(9):
+        q = random.choice([0] * 3 + [1] + [2] + [3])
+        if q == 0:
+            k = random.choice(list(a_d)) if a_d and random.randint(
+                0, 1) else random.randint(-9999, 9999)
+            v = random.randint(-9999, 9999)
+            a_d[k] = v
+            s_d[k] = v
+        if q == 1:
+            k = random.choice(list(a_d)) if a_d and random.randint(
+                0, 1) else random.randint(-9999, 9999)
+            assert (k in a_d) == (k in s_d)
+        if q == 2 and a_d:
+            k = random.choice(list(a_d))
+            a_d[k] == s_d[k]
+        if q == 3 and a_d:
+            k = random.choice(list(a_d))
+            del a_d[k]
+            del s_d[k]
+        assert s_d.to_dict() == a_d
+        s_d = b_dict(s_d.getstr())
 
     a_d = dict()
-    s_d = d()
-    for w in range(4):
+    s_d = b_dict()
+    for w in range(199):
         k = random.randint(-9999, 9999)
         v = random.randint(-9999, 9999)
         s_d[k] = v
         a_d[k] = v
 
-        treeprint(s_d.b.s)
+    s_d = b_dict(s_d.getstr())
 
-        assert s_d.to_dict() == a_d
-        s_d = d(s_d.getstr())
-
-    for w in range(4):
+    w = 0
+    while a_d:
         k = random.choice(list(a_d))
         del a_d[k]
         del s_d[k]
+        w += 1
+        if w % 100 == 0:
+            assert s_d.to_dict() == a_d
+            s_d = b_dict(s_d.getstr())
+    assert s_d.to_dict() == a_d
+    s_d = b_dict(s_d.getstr())
 
-        treeprint(s_d.b.s)
+    # exit()
 
-        assert s_d.to_dict() == a_d
-        s_d = d(s_d.getstr())
+    s_d = b_dict(s_d.getstr())
 
-    to_sleep = 0.01
-    for w in range(19):
+    root_set(0.1)
+    for w in range(49):
         q = random.choice([0] + [1] + [2] + [3])
         if q == 0:
             k = random.choice(list(a_d)) if a_d and random.randint(
@@ -549,3 +449,17 @@ if __name__ == '__main__':
             k = random.choice(list(a_d))
             del a_d[k]
             del s_d[k]
+
+    root_set(0.0)
+
+    w = 0
+    while a_d:
+        k = random.choice(list(a_d))
+        del a_d[k]
+        del s_d[k]
+        w += 1
+        if w % 100 == 0:
+            assert s_d.to_dict() == a_d
+            s_d = b_dict(s_d.getstr())
+    assert s_d.to_dict() == a_d
+    s_d = b_dict(s_d.getstr())

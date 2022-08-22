@@ -1,4 +1,5 @@
 import base64
+from curses import nonl
 import pathlib
 import traceback
 from typing import Any
@@ -8,14 +9,12 @@ import json
 import requests
 import random
 import builtins
+try:
+    from typeguard import typechecked # type: ignore
+except:
+    typechecked=lambda a:a # type: ignore
 
-__all__ = [
-    'short_put',
-    'short_get',
-    'db_max_size',
-    'root_get',
-    'root_set',
-    'home']
+__all__ = ['short_put','short_get','db_max_size','root_get','root_set','home','typechecked']
 
 home = str(pathlib.Path.home()) + '/'
 
@@ -27,6 +26,7 @@ def vk_db():
     cid = group['cid']
     db_max_size = 100_000_000
 
+    @typechecked
     def api(path: str):
         if path and path[-1] not in '&?':
             if '?' in path:
@@ -50,6 +50,7 @@ def vk_db():
             print(traceback.format_exc())
         return data
 
+    @typechecked
     def put(data: bytes) -> str:
         assert isinstance(data, bytes)
         assert len(data) <= db_max_size
@@ -93,6 +94,7 @@ def vk_db():
                     else:
                         return '|' + hex(c)[2:] + '|' + url[len('https://'):]
 
+    @typechecked
     def get(link: str) -> bytes:
         c: str | int
         if link[0] == '|':
@@ -110,6 +112,7 @@ def vk_db():
             data[w] = data[w] * pow(27, c, 256) % 256
         return bytes(data[:len(data) - c])
 
+    @typechecked
     def root_set(root: str) -> None:
         root = base64.b64encode(root.encode()).decode()
         try:
@@ -117,6 +120,7 @@ def vk_db():
         except Exception:
             print(traceback.format_exc())
 
+    @typechecked
     def root_get() -> str | None:
         try:
             root = api(f'storage.get?user_id={cid}&key=root')
@@ -134,6 +138,7 @@ def vk_db():
 def local_db():
     db_max_size = 40
 
+    @typechecked
     def put(data: bytes) -> str:
         assert isinstance(data, bytes)
         assert len(data) <= db_max_size
@@ -160,10 +165,12 @@ def local_db():
                       encoding='utf-8').write(json.dumps(db))
         return k
 
+    @typechecked
     def get(key: str) -> bytes:
         db = json.loads(builtins.open(home + '.cloud.json').read())
         return base64.b64decode(db[key].encode())
 
+    @typechecked
     def root_set(root: str) -> None:
         try:
             db = json.loads(
@@ -176,6 +183,7 @@ def local_db():
         builtins.open(home + '.cloud.json', 'w',
                       encoding='utf-8').write(json.dumps(db))
 
+    @typechecked
     def root_get() -> str | None:
         try:
             db = json.loads(
@@ -190,6 +198,44 @@ def local_db():
 
     return put, get, db_max_size, root_set, root_get
 
+def mem_db():
+    db_max_size = 99**9
 
-short_put, short_get, db_max_size, root_set, root_get = local_db()
+    db_data = {}
+
+    to_sleep=[0.0]
+
+    def put(data):
+        # print(data)
+        file=data
+        time.sleep(to_sleep[0])
+        k = ''
+        while not k or k in db_data:
+            k = ''.join(
+                [
+                    chr(
+                        random.randint(32, 126)
+                    ) for w in range(
+                        random.randint(128, 1024)
+                    )
+                ]
+            )
+        db_data[k] = file
+        return k
+
+    def get(a):
+        # print(a)
+        time.sleep(to_sleep[0])
+        return db_data[a]
+
+    def upd(t):
+        to_sleep[0]=t
+
+    def root_set(t):
+        upd(t)
+
+    return put, get, db_max_size, root_set,None
+
+short_put, short_get, db_max_size, root_set, root_get= mem_db()
+# short_put, short_get, db_max_size, root_set, root_get = local_db()
 # short_put,short_get,db_max_size,root_set,root_get=vk_db()
