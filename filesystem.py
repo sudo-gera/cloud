@@ -5,39 +5,94 @@ import os
 import os.path
 import time
 
+# def normalpath(p):
+#     p = p.replace('\\', '/')
+#     p = p.split('/')
+#     p = [w for w in p if w]
+#     p = '/'.join(p)
+#     p = '/' + p
+#     return p
+
 
 # class filesystem:
 #     def __init__(self):
 #         self.root=d(root_get())
 #     def 
 
+def json_file(**d):
+    assert 'type' in d
+    assert 'cont' in d
+    if d['type']=='file':
+        assert 'size' in d
+    return d
+
+
+files:b_dict[int|url]=b_dict(root_get())
+
+if 0 not in files:
+    files[0]=json_file(
+        type='file',
+        cont=''
+    )
+
+class path:
+    def __init__(self,p:str)->None:
+        p = p.replace('\\', '/')
+        pl = p.split('/')
+        pl = [w for w in pl if w]
+        p = '/'.join(pl)
+        self.p=p
+    def __str__(self)->str:
+        return '/'+self.p
+    def open(self):
+        
+
+
+# @typechecked
+# def mkdir(p:path)->None:
 
 
 class directory:
-    def __init__(self,*,val=url()):
-        if type(val)==url:
-            self.content=d(val)
-            self.key=val
-        elif type(val)==d:
-            self.content=val
-            self.key=None
-    def __getitem__(self,k):
-        return self.content[k]
-    def __setitem__(self,k,v):
-        self.content[k]=v
-        self.key=None
-    def __detitem__(self,k):
-        del self.content[k]
-        self.key=None
-    def getstr(self):
-        return self.content.getstr()
-    def to_dict(self):
-        return self.content.to_dict()
+    def __init__(self,p:path):
+        self.fd=p.open()
+        self.d=b_dict(files[self.fd])
+    def __getitem__(self,key):
+        return self.d[key]
+    def __setitem__(self,key,val):
+        self.d[key]=val
+    def __delitem__(self,key):
+        del self.d[key]
 
 
-class filesystem:
-    def __init__(self):
-        self.root=d(root_get())
+
+
+
+
+# class directory:
+#     def __init__(self,*,val=url()):
+#         if type(val)==url:
+#             self.content=d(val)
+#             self.key=val
+#         elif type(val)==d:
+#             self.content=val
+#             self.key=None
+#     def __getitem__(self,k):
+#         return self.content[k]
+#     def __setitem__(self,k,v):
+#         self.content[k]=v
+#         self.key=None
+#     def __detitem__(self,k):
+#         del self.content[k]
+#         self.key=None
+#     def getstr(self):
+#         return self.content.getstr()
+#     def to_dict(self):
+#         return self.content.to_dict()
+
+
+# class filesystem:
+#     def __init__(self):
+#         self.root=d(root_get())
         
 
 #         self.fs=d(root_get())
@@ -116,14 +171,6 @@ class filesystem:
 # #         }
 
 
-# def normalpath(p):
-#     p = p.replace('\\', '/')
-#     p = p.split('/')
-#     p = [w for w in p if w]
-#     p = '/'.join(p)
-#     '/'.join(p)
-#     p = '/' + p
-#     return p
 
 
 # def mkfile(p, v, t='file'):

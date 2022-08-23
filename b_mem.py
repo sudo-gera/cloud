@@ -1,5 +1,4 @@
 from __future__ import annotations
-from abc import ABCMeta, abstractmethod
 import functools
 import json
 import traceback
@@ -22,12 +21,11 @@ __all__ = [
 max_len = 64
 
 
-class Comparable(metaclass=ABCMeta):
-    @abstractmethod
-    def __lt__(self, other: typing.Any) -> bool: ...
+class ComparableProto(typing.Protocol):
+    def __lt__(self: T, __other: T) -> bool: ...
 
 
-T = typing.TypeVar('T', bound=Comparable)
+T = typing.TypeVar('T', bound=ComparableProto)
 T = typing.TypeVar('T')  # type: ignore
 
 
@@ -213,7 +211,7 @@ tn = node
 tn = Node  # type: ignore
 
 
-class b_set:
+class b_set(typing.Generic[T]):
 
     def __init__(self, u: url = url()):
         self.root: Node = None
@@ -284,8 +282,13 @@ class b_set:
         assert self.root is None or self.root.key, 'All unsaved data was deleted!'
 
 
+K = typing.TypeVar('K', bound=ComparableProto)
+K = typing.TypeVar('K')  # type: ignore
+V = typing.TypeVar('V')
+
+
 @functools.total_ordering
-class item:
+class item(typing.Generic[K, V]):
 
     def __init__(self, k, v=None):
         if isinstance(k, item):
@@ -306,10 +309,10 @@ class item:
         return [self.k, self.v]
 
 
-class b_dict:
+class b_dict(typing.Generic[K, V]):
 
     def __init__(self, u: url = url()):
-        self.b_set = b_set(u)
+        self.b_set: b_set[item[K, V]] = b_set(u)
 
     def __getitem__(self, k):
         return self.b_set.find(item(k))[0].v
@@ -336,16 +339,15 @@ class b_dict:
 
 
 if __name__ == '__main__':
+    assert root_get is None
 
     root_set(0.0)
-
-    assert root_get is None
 
     sed = random.randint(-9999, 9999)
     # sed = -3676
     print(sed)
     random.seed(sed)
-    s_s = b_set()
+    s_s: b_set[int] = b_set()
     a_s = set()
     for w in range(99):
         q = random.choice([0] * 3 + [1] + [2])
@@ -380,7 +382,7 @@ if __name__ == '__main__':
     #     assert a_s == f
 
     a_d: dict[int, int] = dict()
-    s_d = b_dict()
+    s_d: b_dict[int, int] = b_dict()
     for w in range(9):
         q = random.choice([0] * 3 + [1] + [2] + [3])
         if q == 0:
